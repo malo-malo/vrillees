@@ -9,9 +9,7 @@ from vrillees_website import views
 urlpatterns = [
     path("", views.index, name="index"),
     path("about/", views.about, name="about"),
-    path("privacy/", views.privacy, name="privacy"),
     path("robots.txt", views.robots, name="robots"),
-    path(".well-known/security.txt", views.security, name="security"),
     path("manifest.json", views.manifest, name="manifest"),
     path(".well-known/assetlinks.json", views.assetlinks, name="assetlinks"),
     path("accept-cookies/", views.accept_cookies, name="accept_cookies"),
