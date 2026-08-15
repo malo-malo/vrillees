@@ -19,7 +19,7 @@ class Command(BaseCommand):
         "apply:   write a translations JSON back into a .po file."
     )
 
-    def add_arguments(self, parser: CommandParser) -> None:  # noqa: D102
+    def add_arguments(self, parser: CommandParser) -> None:
         parser.add_argument(
             "subcommand",
             choices=["extract", "count", "apply"],
@@ -36,7 +36,7 @@ class Command(BaseCommand):
             help="Path to the translations JSON file (required for apply).",
         )
 
-    def handle(  # noqa: D102
+    def handle(
         self,
         *,
         subcommand: str,
