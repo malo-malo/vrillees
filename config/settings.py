@@ -56,6 +56,7 @@ INSTALLED_APPS: list[str] = [
     "widget_tweaks",
     "vrillees_website",
     "vrillees_website.users",
+    "vrillees_website.company",
 ]
 
 

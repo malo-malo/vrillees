@@ -40,6 +40,7 @@ dependencies = [
   "uvicorn[standard]>=0.47.0",
   "whitenoise[brotli]>=6.12.0",
   "django-storages[s3]>=1.14.6",
+  "pillow>=12.3.0",
 ]
 [dependency-groups]
 dev = [
@@ -153,7 +154,11 @@ lint.select = [
 ]
 lint.ignore = [
   "D100",
+  "D101",
+  "D102",
+  "D103",
   "D104",
+  "D105",
   "D106",
   "D107",
   "D203",
@@ -178,19 +183,15 @@ lint.ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"**/apps.py" = ["D101", "D102", "D103", "D105", "PL", "RUF"]
-"**/conftest.py" = ["D101", "D102", "D103", "D105", "PL", "RUF"]
+"**/apps.py" = ["PL", "RUF"]
+"**/conftest.py" = ["PL", "RUF"]
 "**/migrations/**.py" = [
-  "D101",
-  "D102",
-  "D103",
-  "D105",
   "E501",
   "N",
   "PL",
   "RUF",
 ]
-"**/tests/**.py" = ["D101", "D102", "D103", "D105", "PL", "RUF"]
+"**/tests/**.py" = ["D101", "PL", "RUF"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["vrillees_website"]
