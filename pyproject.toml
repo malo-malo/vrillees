@@ -1,7 +1,7 @@
 [project]
 name = "vrillees_website"
 version = "0.1.0"
-description = "Theatre company Vrillé.e.s website"
+description = "Site de la compagnie Vrillé.e.s"
 authors = [
   { name = "Malo Cayocca", email = "malo.cayocca@protonmail.com" },
 ]

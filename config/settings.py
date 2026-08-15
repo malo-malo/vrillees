@@ -582,9 +582,7 @@ HTMX_CONFIG = {
 
 META_TAGS = {
     "author": env("META_AUTHOR", default="Malo Cayocca"),
-    "description": env(
-        "META_DESCRIPTION", default="Theatre company Vrillé.e.s website"
-    ),
+    "description": env("META_DESCRIPTION", default="Site de la compagnie Vrillé.e.s"),
     "keywords": env("META_KEYWORDS", default=""),
 }
 
@@ -621,7 +619,7 @@ if env.bool("USE_S3_STORAGE", default=False):
 
 PWA_CONFIG = {
     "background_color": env("PWA_BACKGROUND_COLOR", default="#ffffff"),
-    "description": env("PWA_DESCRIPTION", default="Theatre company Vrillé.e.s website"),
+    "description": env("PWA_DESCRIPTION", default="Site de la compagnie Vrillé.e.s"),
     "theme_color": env("PWA_THEME_COLOR", default="#000000"),
     "assetlinks": {
         "package_name": env("PWA_PACKAGE_NAME", default=""),

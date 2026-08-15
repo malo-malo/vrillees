@@ -1,6 +1,6 @@
 # Site de Vrillé.e.s
 
-Theatre company Vrillé.e.s website
+Site de la compagnie Vrillé.e.s
 
 ## Requirements
 
