@@ -1,0 +1,124 @@
+# Site de Vrillé.e.s
+
+Theatre company Vrillé.e.s website
+
+## Requirements
+
+### Development
+
+| Tool                                                    | Purpose                                          | Install                                                     |
+| ------------------------------------------------------- | ------------------------------------------------ | ----------------------------------------------------------- |
+| [uv](https://docs.astral.sh/uv/)                        | Python package manager                           | `curl -LsSf https://astral.sh/uv/install.sh \| sh`          |
+| [just](https://just.systems/)                           | Task runner                                      | `cargo install just` or via your OS package manager         |
+| [Docker](https://docs.docker.com/get-docker/) + Compose | PostgreSQL, Redis, Mailpit                       | See Docker docs                                             |
+| [gh](https://cli.github.com/)                           | GitHub CLI (issues, PRs)                         | See [install docs](https://github.com/cli/cli#installation) |
+
+Python 3.14 is managed automatically by `uv` - no separate install needed.
+
+### Deployment
+
+| Tool                                                           | Purpose                                             | Install          |
+| -------------------------------------------------------------- | --------------------------------------------------- | ---------------- |
+| [Terraform](https://developer.hashicorp.com/terraform/install) | Provision Hetzner infrastructure and Cloudflare DNS | See install docs |
+| [Helm](https://helm.sh/docs/intro/install/)                    | Deploy Kubernetes workloads                         | See install docs |
+| [kubectl](https://kubernetes.io/docs/tasks/tools/)             | Kubernetes CLI                                      | See install docs |
+| [hcloud](https://github.com/hetznercloud/cli)                  | Hetzner Cloud CLI                                   | See install docs |
+
+See `docs/deployment.md` for full deployment instructions.
+
+## Setup
+
+```bash
+cp .env.example .env        # configure environment variables
+git init                    # initialise Git repository
+just start                  # start Docker services (PostgreSQL, Redis, Mailpit)
+just install                # install Python deps + pre-commit hooks
+just dj makemigrations      # generate initial migrations (required on first run)
+just dj migrate             # run database migrations
+just serve                  # start dev server + Tailwind watcher
+```
+
+## Common Commands
+
+```bash
+just test                   # run unit tests with coverage
+just lint                   # ruff + djlint
+just typecheck              # basedpyright
+just dj <command>           # run any manage.py command
+just stop                   # stop Docker services
+```
+
+Run `just` with no arguments to list all available commands.
+
+## Slash Commands
+
+Available in Claude Code and OpenCode as `/dj-<command>`:
+
+**General**
+
+| Command              | Summary                                                                           |
+| -------------------- | --------------------------------------------------------------------------------- |
+| `/dj-help`           | List all dj-* commands or show help for a specific command                        |
+| `/dj-sync`           | Pull latest template changes via Copier and resolve merge conflicts interactively |
+| `/dj-feedback`       | Report a bug or improvement against the django-studio template                    |
+
+**Generators**
+
+| Command              | Summary                                                                |
+| -------------------- | ---------------------------------------------------------------------- |
+| `/dj-create-app`     | Create a Django app (apps.py, models, views, urls, admin, tests)       |
+| `/dj-create-view`    | Add a view, template, and URL                                          |
+| `/dj-create-task`    | Add a `django-tasks-db` background task with correct async patterns    |
+| `/dj-create-command` | Add a management command with tests                                    |
+| `/dj-create-model`     | Design and write a Django model with factory, fixture, and model tests |
+| `/dj-create-migration` | Create a data migration (Python or SQL)                                |
+| `/dj-create-crud`      | Generate full CRUD views, templates, URLs, and tests                   |
+| `/dj-create-e2e`     | Write Playwright E2E test(s) for a described user interaction          |
+| `/dj-create-tag`     | Add a template tag (simple_tag, simple_block_tag, inclusion_tag, Node) |
+| `/dj-create-filter`  | Add a template filter with correct escaping flags                      |
+
+**Localisation**
+
+| Command         | Summary                                                        |
+| --------------- | -------------------------------------------------------------- |
+| `/dj-localize` | Add localization formats, extract strings, translate using agent, compile `.mo` catalogue |
+
+**Audits**
+
+| Command              | Summary                                                                      |
+| -------------------- | ---------------------------------------------------------------------------- |
+| `/dj-perf`           | Performance audit: N+1 queries, missing indexes, caching, async              |
+| `/dj-secure`         | Security audit: settings, views, XSS, CSRF, IDOR, SQL injection              |
+| `/dj-gdpr`           | GDPR compliance audit: PII in models, erasure, consent, logging              |
+| `/dj-a11y`           | Accessibility audit: WCAG 2.1 AA — forms, icons, HTMX, Alpine, semantic HTML |
+| `/dj-deadcode`       | Remove unused Python code, Django templates and static assets                |
+| `/dj-remove-slop`    | Audit and remove Django anti-patterns introduced by AI or inattentive devs   |
+| `/dj-full-coverage`  | Enable 100% coverage gate and write tests for all uncovered lines            |
+
+**Deployment**
+
+| Command                    | Summary                                                                        |
+| -------------------------- | ------------------------------------------------------------------------------ |
+| `/dj-launch`               | Interactive first-deploy wizard: provisions infra, configures secrets, deploys |
+| `/dj-launch-observability` | Deploy the observability stack (Grafana + Prometheus + Loki)                   |
+| `/dj-scale [n]`            | View or change the webapp replica count                                        |
+| `/dj-rotate-secrets`       | Rotate auto-generated and third-party Helm secrets and redeploy                |
+| `/dj-enable-db-backups`    | Enable automated daily PostgreSQL backups to a private Object Storage bucket   |
+| `/dj-db-backup`            | Trigger an immediate database backup without waiting for the daily cron        |
+| `/dj-db-restore`           | Guided production database restore from Object Storage backup                  |
+| `/dj-deploy-cron`          | Schedule a management command as a Kubernetes cron job                         |
+
+
+## Stack
+
+- Python 3.14, Django 6.0, PostgreSQL 18, Redis 8
+- HTMX + Alpine.js + Tailwind CSS (no JS build step)
+- `uv` for dependency management, `just` for task running
+- `django-tasks-db` for background tasks
+- `django-allauth` for authentication
+
+See `docs/` for detailed documentation on each part of the stack.
+
+---
+
+Built with [django-studio](https://github.com/danjac/django-studio)

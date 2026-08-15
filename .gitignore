@@ -1,0 +1,63 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg
+*.egg-info/
+dist/
+build/
+memory/
+*.so
+.django_studio/
+.venv/
+venv/
+.eggs/
+
+# Django
+*.log
+local_settings.py
+db.sqlite3
+staticfiles/
+media/
+static/app.css
+.django_tailwind_cli/
+.playwright-mcp/
+.ruff_cache/
+
+# i18n
+locale/**/*.mo
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Coverage
+.coverage
+htmlcov/
+.pytest_cache/
+
+# Temp / backup
+*.bak
+
+# IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Terraform
+**/.terraform/
+terraform/**/*.tfvars
+terraform/**/.terraform.lock.hcl
+
+# Helm
+helm/*/values.secret.yaml
+helm/*/charts/

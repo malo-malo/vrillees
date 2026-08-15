@@ -1,0 +1,237 @@
+import functools
+import json
+import re
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, Any
+
+from django import template
+from django.conf import settings
+from django.shortcuts import resolve_url
+from django.template.exceptions import TemplateDoesNotExist
+from django.urls import NoReverseMatch, reverse
+from django.utils.html import format_html, format_html_join
+
+if TYPE_CHECKING:
+    from django.contrib.sites.models import Site
+    from django.template.context import Context
+    from django.utils.safestring import SafeString
+    from django_stubs_ext import StrOrPromise
+
+    from vrillees_website.http.request import RequestContext
+
+register = template.Library()
+
+
+@register.inclusion_tag("cookie_banner.html", takes_context=True)
+def cookie_banner(context: RequestContext) -> dict:
+    """Render the GDPR cookie consent banner.
+
+    Passes ``cookies_accepted`` into the template based on whether the
+    GDPR consent cookie is present on the request.
+    """
+    cookies_accepted = settings.GDPR_COOKIE_NAME in context.request.COOKIES
+    return context.flatten() | {"cookies_accepted": cookies_accepted}
+
+
+@register.simple_tag(takes_context=True)
+def title_tag(
+    context: RequestContext, *elements: StrOrPromise, divider: str = " | "
+) -> str:
+    """Renders <title> content including the site name.
+
+    Example:
+        {% title_tag "About Us" %}
+    Results in:
+        <title>My Site | About Us</title>
+    """
+    content = divider.join(str(e) for e in (context.request.site.name, *elements))
+    return format_html("<title>{}</title>", content)
+
+
+@register.simple_tag
+@functools.cache
+def meta_tags() -> str:
+    """Renders META tags from settings including HTMX config."""
+    tags = [
+        *[{"name": key, "content": value} for key, value in settings.META_TAGS.items()],
+        {
+            "name": "htmx-config",
+            "content": json.dumps(settings.HTMX_CONFIG),
+        },
+    ]
+    return format_html_join(
+        "\n",
+        "<meta {}>",
+        (
+            (
+                format_html_join(
+                    " ",
+                    '{}="{}"',
+                    ((key, value) for key, value in meta.items()),
+                ),
+            )
+            for meta in tags
+        ),
+    )
+
+
+@register.simple_tag
+def absolute_uri(site: Site, path: str, *args, **kwargs) -> str:
+    """Returns absolute URI for the given path."""
+    scheme = "https" if settings.USE_HTTPS else "http"
+    url = resolve_url(path, *args, **kwargs)
+    return f"{scheme}://{site.domain}{url}"
+
+
+@dataclass(frozen=True, kw_only=True)
+class ActiveUrl:
+    """Result of ``active_url`` and ``re_active_url`` template tags.
+
+    Provides the resolved URL, active state, and CSS classes. Use
+    ``obj.css_class`` in templates for the resolved class string, or
+    access ``obj.url`` and ``obj.is_active`` independently.
+    """
+
+    url: str
+    is_active: bool
+    active_class: str = ""
+    inactive_class: str = ""
+
+    @property
+    def css_class(self) -> str:
+        """Return active_class or inactive_class based on is_active."""
+        return self.active_class if self.is_active else self.inactive_class
+
+
+@register.simple_tag(takes_context=True)
+def active_url(
+    context: RequestContext,
+    viewname: str,
+    *args: Any,
+    active_class: str = "",
+    inactive_class: str = "",
+    **url_kwargs: Any,
+) -> ActiveUrl:
+    """Resolve a URL and return an ActiveUrl indicating whether it is current.
+
+    Takes the same positional and keyword arguments as the ``url`` tag. Compares
+    the resolved URL against ``request.path`` to determine active state.
+    Use ``obj.url`` for the href and ``obj.css_class`` for the active/inactive class.
+
+    Example:
+        {% active_url 'account_email' active_class=active_class as match %}
+        {% active_url 'post_detail' post.pk active_class=active_class as match %}
+    """
+    url = _resolve_url(viewname, args, url_kwargs)
+    is_active = bool(url) and context.request.path == url
+    return ActiveUrl(
+        url=url,
+        is_active=is_active,
+        active_class=active_class,
+        inactive_class=inactive_class,
+    )
+
+
+@register.simple_tag(takes_context=True)
+def re_active_url(
+    context: RequestContext,
+    pattern: str,
+    viewname: str = "",
+    *args: Any,
+    active_class: str = "",
+    inactive_class: str = "",
+    **url_kwargs: Any,
+) -> ActiveUrl:
+    """Match current path against a pattern and return an ActiveUrl.
+
+    Use when a nav item should be active across multiple URL patterns. Pass
+    a viewname as the second argument to resolve the href URL. Accepts the
+    same positional and keyword arguments as the ``url`` tag.
+
+    Example:
+        {% re_active_url 'password/(change|set)' 'account_change_password' active_class=active_class as pw %}
+        {% re_active_url 'posts/\\d+' 'post_detail' post.pk active_class=active_class as pw %}
+        <a href="{{ pw.url }}" class="{{ pw.css_class }}">Password</a>
+    """
+    url = _resolve_url(viewname, args, url_kwargs)
+    is_active = bool(re.search(pattern, context.request.path))
+    return ActiveUrl(
+        url=url,
+        is_active=is_active,
+        active_class=active_class,
+        inactive_class=inactive_class,
+    )
+
+
+@register.simple_block_tag(takes_context=True)
+def fragment(
+    context: Context,
+    content: str,
+    template_name: str,
+    *,
+    only: bool = False,
+    **extra_context,
+) -> SafeString:
+    """Renders an include template with block content passed as {{ content }}.
+
+    Example:
+
+        {% fragment "header.html" %}
+        title goes here
+        {% endfragment %}
+
+    header.html:
+
+        <h1>{{ content }}</h1>
+
+    If `only` is passed the outer context is not included.
+    """
+    context = context.new() if only else context
+
+    if context.template is None:
+        raise template.TemplateSyntaxError(
+            "Can only be used inside a template context."
+        )
+
+    tmpl = context.template.engine.get_template(template_name)
+
+    with context.push(content=content, **extra_context):
+        return tmpl.render(context)
+
+
+@register.simple_tag(takes_context=True)
+def try_include(
+    context: Context, template_name: str, fallback: str, **extra_context
+) -> str:
+    """Include a template, falling back to ``fallback`` if not found.
+
+    Useful for optional per-widget overrides where a sensible default exists.
+    Extra keyword arguments are pushed onto the context for the render.
+
+    Example:
+
+        {% try_include "forms/partials.html#"|add:widget_type "forms/partials.html#input" %}
+        {% try_include "tmpl_a.html" "tmpl_b.html" foo=bar %}
+    """
+    if context.template is None:
+        raise template.TemplateSyntaxError(
+            "Can only be used inside a template context."
+        )
+
+    engine = context.template.engine
+    try:
+        tmpl = engine.get_template(template_name)
+    except TemplateDoesNotExist:
+        tmpl = engine.get_template(fallback)
+    with context.push(**extra_context):
+        return tmpl.render(context)
+
+
+def _resolve_url(viewname: str, args: tuple[Any, ...], kwargs: dict[str, Any]) -> str:
+    """Resolve a URL by viewname, returning empty string on failure."""
+    if not viewname:
+        return ""
+    try:
+        return reverse(viewname, args=args, kwargs=kwargs)
+    except NoReverseMatch:
+        return ""

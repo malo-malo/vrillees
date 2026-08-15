@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# Run Django manage.py commands inside the production django-app pod.
+# Usage: rmanage.sh <manage_command> [args...]
+# Example: rmanage.sh migrate
+set -euo pipefail
+
+export KUBECONFIG="${KUBECONFIG:-$HOME/.kube/vrillees_website.yaml}"
+
+POD="$(kubectl get pods -l app=django-app -n default -o jsonpath='{.items[0].metadata.name}')"
+kubectl exec -it "$POD" -n default -- python manage.py "$@"

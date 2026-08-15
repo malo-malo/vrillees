@@ -1,0 +1,11 @@
+# Changes here will be overwritten by Copier; NEVER EDIT MANUALLY
+_commit: ef31d9a
+_src_path: gh:danjac/django-studio
+author: Malo Cayocca
+author_email: malo.cayocca@protonmail.com
+description: Theatre company Vrillé.e.s website
+domain: vrillees.fr
+license: MIT
+package_name: vrillees_website
+project_name: Site de Vrillé.e.s
+project_slug: vrillees_website

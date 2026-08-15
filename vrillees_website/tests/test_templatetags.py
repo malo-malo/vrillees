@@ -1,0 +1,224 @@
+from unittest.mock import Mock
+
+import pytest
+from django.template import TemplateSyntaxError
+from django.template.exceptions import TemplateDoesNotExist
+
+from vrillees_website.http.request import RequestContext
+from vrillees_website.templatetags import (
+    absolute_uri,
+    active_url,
+    cookie_banner,
+    fragment,
+    meta_tags,
+    re_active_url,
+    title_tag,
+    try_include,
+)
+
+
+@pytest.fixture(autouse=True)
+def _clear_meta_tags_cache():
+    meta_tags.cache_clear()
+    yield
+    meta_tags.cache_clear()
+
+
+class TestCookieBanner:
+    def test_not_accepted(self, rf):
+        req = rf.get("/")
+        context = RequestContext(request=req)
+        assert cookie_banner(context)["cookies_accepted"] is False
+
+    def test_accepted(self, rf, settings):
+        req = rf.get("/")
+        req.COOKIES = {settings.GDPR_COOKIE_NAME: "1"}
+        context = RequestContext(request=req)
+        assert cookie_banner(context)["cookies_accepted"] is True
+
+
+@pytest.mark.django_db
+class TestTitleTag:
+    def test_renders_title_with_site_name(self, rf, site):
+        req = rf.get("/")
+        req.site = site
+        context = RequestContext(request=req)
+        result = title_tag(context, "About Us")
+        assert f"<title>{site.name} | About Us</title>" == result
+
+    def test_renders_title_no_elements(self, rf, site):
+        req = rf.get("/")
+        req.site = site
+        context = RequestContext(request=req)
+        result = title_tag(context)
+        assert f"<title>{site.name}</title>" == result
+
+    def test_custom_divider(self, rf, site):
+        req = rf.get("/")
+        req.site = site
+        context = RequestContext(request=req)
+        result = title_tag(context, "Page", divider=" - ")
+        assert f"<title>{site.name} - Page</title>" == result
+
+
+class TestMetaTags:
+    def test_renders_meta_tags(self):
+        result = meta_tags()
+        assert "<meta " in result
+
+    def test_includes_htmx_config(self):
+        result = meta_tags()
+        assert "htmx-config" in result
+
+    def test_result_is_cached(self):
+        first = meta_tags()
+        second = meta_tags()
+        assert first is second
+
+
+@pytest.mark.django_db
+class TestAbsoluteUri:
+    def test_https(self, site, settings):
+        settings.USE_HTTPS = True
+        result = absolute_uri(site, "/")
+        assert result == f"https://{site.domain}/"
+
+    def test_http(self, site, settings):
+        settings.USE_HTTPS = False
+        result = absolute_uri(site, "/")
+        assert result == f"http://{site.domain}/"
+
+
+def _nav_context(app_name: str = "", url_name: str = "", path: str = "/") -> Mock:
+    ctx = Mock()
+    ctx.request.resolver_match.app_name = app_name
+    ctx.request.resolver_match.url_name = url_name
+    ctx.request.path = path
+    return ctx
+
+
+class TestActiveUrl:
+    def test_active_when_path_matches(self, rf):
+        req = rf.get("/account/email/")
+        ctx = Mock()
+        ctx.request = req
+        result = active_url(ctx, "account_email", active_class="menu-active")
+        assert result.is_active is True
+        assert result.url == "/account/email/"
+        assert result.css_class == "menu-active"
+
+    def test_inactive_when_path_differs(self, rf):
+        req = rf.get("/")
+        ctx = Mock()
+        ctx.request = req
+        result = active_url(ctx, "account_email")
+        assert result.is_active is False
+        assert result.url == "/account/email/"
+        assert result.css_class == ""
+
+    def test_invalid_viewname_returns_empty_url(self, rf):
+        req = rf.get("/")
+        ctx = Mock()
+        ctx.request = req
+        result = active_url(ctx, "nonexistent_view_xyz")
+        assert result.url == ""
+        assert result.is_active is False
+
+
+class TestReActiveUrl:
+    def test_active_when_pattern_matches(self):
+        result = re_active_url(
+            _nav_context(path="/account/password/change/"),
+            "password/(change|set)",
+            active_class="menu-active",
+        )
+        assert result.is_active is True
+        assert result.css_class == "menu-active"
+
+    def test_active_on_second_pattern_match(self):
+        result = re_active_url(
+            _nav_context(path="/account/password/set/"), "password/(change|set)"
+        )
+        assert result.is_active is True
+
+    def test_inactive_when_no_match(self):
+        result = re_active_url(
+            _nav_context(path="/account/email/"), "password/(change|set)"
+        )
+        assert result.is_active is False
+        assert result.css_class == ""
+
+    def test_resolves_viewname(self, rf):
+        req = rf.get("/")
+        ctx = Mock()
+        ctx.request = req
+        result = re_active_url(ctx, "password/(change|set)", "account_change_password")
+        assert result.url == "/account/password/change/"
+
+    def test_resolves_viewname_with_url_args(self, rf, mocker):
+        mocker.patch(
+            "vrillees_website.templatetags.reverse",
+            return_value="/posts/42/",
+        )
+        req = rf.get("/posts/42/")
+        ctx = Mock()
+        ctx.request = req
+        result = re_active_url(ctx, r"posts/\d+", "post_detail", 42)
+        assert result.url == "/posts/42/"
+        assert result.is_active is True
+
+    def test_resolves_viewname_with_url_kwargs(self, rf, mocker):
+        mocker.patch(
+            "vrillees_website.templatetags.reverse",
+            return_value="/posts/42/",
+        )
+        req = rf.get("/posts/42/")
+        ctx = Mock()
+        ctx.request = req
+        result = re_active_url(ctx, r"posts/\d+", "post_detail", pk=42)
+        assert result.url == "/posts/42/"
+        assert result.is_active is True
+
+
+class TestFragment:
+    def test_raises_when_no_template_in_context(self, mocker):
+        context = mocker.Mock()
+        context.template = None
+        with pytest.raises(TemplateSyntaxError):
+            fragment(context, "some content", "messages.html")
+
+
+class TestTryInclude:
+    def test_raises_when_no_template_in_context(self, mocker):
+        context = mocker.Mock()
+        context.template = None
+        with pytest.raises(TemplateSyntaxError):
+            try_include(context, "primary.html", "fallback.html")
+
+    def test_renders_primary_when_found(self, mocker):
+        context = mocker.MagicMock()
+        tmpl = mocker.Mock()
+        tmpl.render.return_value = "primary content"
+        context.template.engine.get_template.return_value = tmpl
+        result = try_include(context, "primary.html", "fallback.html")
+        context.template.engine.get_template.assert_called_once_with("primary.html")
+        assert result == "primary content"
+
+    def test_falls_back_when_primary_not_found(self, mocker):
+        context = mocker.MagicMock()
+        fallback_tmpl = mocker.Mock()
+        fallback_tmpl.render.return_value = "fallback content"
+        context.template.engine.get_template.side_effect = [
+            TemplateDoesNotExist("primary.html"),
+            fallback_tmpl,
+        ]
+        result = try_include(context, "primary.html", "fallback.html")
+        assert result == "fallback content"
+
+    def test_extra_context_pushed(self, mocker):
+        context = mocker.MagicMock()
+        tmpl = mocker.Mock()
+        tmpl.render.return_value = "content"
+        context.template.engine.get_template.return_value = tmpl
+        try_include(context, "primary.html", "fallback.html", foo="bar")
+        context.push.assert_called_once_with(foo="bar")

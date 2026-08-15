@@ -1,0 +1,215 @@
+[project]
+name = "vrillees_website"
+version = "0.1.0"
+description = "Theatre company Vrillé.e.s website"
+authors = [
+  { name = "Malo Cayocca", email = "malo.cayocca@protonmail.com" },
+]
+requires-python = "==3.14.*"
+readme = "README.md"
+license = { text = "MIT" }
+
+dependencies = [
+  "aiohttp>=3.13.5",
+  "django-allauth[socialaccount]>=65.17.0",
+  "django-anymail>=15.0",
+  "django-health-check>=4.4.1",
+  "django-htmx>=1.27.0",
+  "django-http-compression[brotli]>=1.4.0",
+  "django-linear-migrations>=2.19.0",
+  "django-permissions-policy>=4.30.0",
+  "django-redis>=6.0.0",
+  "django-tailwind-cli>=4.6.2",
+  "django-tasks-db>=0.12.0",
+  "django-widget-tweaks>=1.5.1",
+  "django>=6.0,<6.1",
+  "environs[django]>=15.0.1",
+  "gunicorn>=26.0.0",
+  "heroicons[django]>=2.14.0",
+  "opentelemetry-api>=1.42.1",
+  "opentelemetry-exporter-otlp-proto-http>=1.42.1",
+  "opentelemetry-exporter-otlp>=1.42.1",
+  "opentelemetry-instrumentation-django>=0.63b1",
+  "opentelemetry-instrumentation-psycopg>=0.63b1",
+  "opentelemetry-instrumentation-redis>=0.63b1",
+  "opentelemetry-instrumentation-requests>=0.63b1",
+  "opentelemetry-sdk>=1.42.1",
+  "psutil>=7.2.2",
+  "psycopg[binary,pool]>=3.3.4",
+  "redis>=7.4.0",
+  "sentry-sdk>=2.60.0",
+  "uvicorn[standard]>=0.47.0",
+  "whitenoise[brotli]>=6.12.0",
+  "django-storages[s3]>=1.14.6",
+]
+[dependency-groups]
+dev = [
+  "aioresponses>=0.7.8",
+  "basedpyright>=1.39.5",
+  "django-stubs-ext>=6.0.4",
+  "django-stubs>=6.0.4",
+  "coverage>=7.14.0",
+  "django-browser-reload>=1.21.0",
+  "django-debug-toolbar>=6.3.0",
+  "django-removals>=1.2.1",
+  "django-watchfiles>=1.4.0",
+  "factory-boy>=3.3.3",
+  "faker>=40.19.1",
+  "pytest-asyncio>=1.3.0",
+  "pytest-cov>=7.1.0",
+  "pytest-django>=4.12.0",
+  "pytest-env>=1.6.0",
+  "pytest-icdiff>=0.9",
+  "pytest-mock>=3.15.1",
+  "pytest-playwright>=0.8.0",
+  "pytest-randomly>=4.1.0",
+  "pytest-watcher>=0.6.3",
+  "pytest-xdist>=3.8.0",
+  "pytest>=9.0.3",
+  "ruff>=0.15.14",
+  "djlint>=1.36.4",
+  "mcp-django>=0.13.0",
+]
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "config.settings"
+asyncio_mode = "auto"
+addopts = [
+  "-v",
+  "-x",
+  "-p no:warnings",
+  "--ff",
+  "--cov",
+  "--reuse-db",
+  "--no-cov-on-fail",
+  # Uncomment when the project is mature and you want to enforce full coverage:
+  # "--cov-fail-under=100",
+  "--cov-report=term-missing",
+  "--tb=short",
+  "-m",
+  "not e2e",
+]
+markers = ["e2e: end-to-end browser tests with Playwright"]
+
+testpaths = ["vrillees_website", "templates"]
+env = [
+  "COVERAGE_CORE=sysmon",
+  "DJANGO_ALLOW_ASYNC_UNSAFE=true",
+  "USE_CONNECTION_POOL=false",
+  "USE_COLLECTSTATIC=false",
+  "USE_HTTPS=false",
+  "USE_X_FORWARDED_HOST=false",
+]
+
+[tool.pytest-watcher]
+now = false
+clear = true
+delay = 0.2
+runner = "pytest"
+patterns = ["*.py", "*.html"]
+
+[tool.coverage.run]
+source = ["vrillees_website"]
+omit = ["**/migrations/*", "*/tests/*"]
+
+[tool.djlint]
+profile = "django"
+ignore = "H016,H030,H031,H017,H021,T003"
+custom_blocks = "cache,partialdef,fragment"
+
+[tool.ruff]
+target-version = "py314"
+
+
+lint.select = [
+  "B",
+  "C4",
+  "C90",
+  "D10",
+  "DJ",
+  "E",
+  "ERA",
+  "F",
+  "FA",
+  "FBT",
+  "G",
+  "I001",
+  "INP",
+  "N",
+  "PGH",
+  "PIE",
+  "PL",
+  "PT",
+  "PTH",
+  "RET",
+  "RSE",
+  "RUF",
+  "S",
+  "SIM",
+  "T20",
+  "TCH",
+  "TID",
+  "W",
+]
+lint.ignore = [
+  "D100",
+  "D104",
+  "D106",
+  "D107",
+  "D203",
+  "D204",
+  "D213",
+  "D215",
+  "D400",
+  "D401",
+  "D404",
+  "D406",
+  "D407",
+  "D408",
+  "D409",
+  "D413",
+  "DJ008",
+  "E501",
+  "E701",
+  "PLR0913",
+  "PT019",
+  "Q000",
+  "S101",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"**/apps.py" = ["D101", "D102", "D103", "D105", "PL", "RUF"]
+"**/conftest.py" = ["D101", "D102", "D103", "D105", "PL", "RUF"]
+"**/migrations/**.py" = [
+  "D101",
+  "D102",
+  "D103",
+  "D105",
+  "E501",
+  "N",
+  "PL",
+  "RUF",
+]
+"**/tests/**.py" = ["D101", "D102", "D103", "D105", "PL", "RUF"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["vrillees_website"]
+
+
+[tool.django-stubs]
+django_settings_module = "config.settings"
+
+[tool.basedpyright]
+include = ["vrillees_website"]
+exclude = ["**/migrations/*.py", "**/tests/**/*.py"]
+typeCheckingMode = "basic"
+
+[tool.pysentry.defaults]
+severity = "medium"
+# fail_on = "high"
+
+[tool.pysentry.sources]
+# enabled = ["pypa", "osv", "pypi"]
+
+[tool.pysentry.ignore]
+# ids = []

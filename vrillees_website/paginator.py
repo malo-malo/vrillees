@@ -1,0 +1,67 @@
+import dataclasses
+from typing import TYPE_CHECKING, TypeAlias
+
+from django.conf import settings
+from django.core.paginator import Paginator
+
+from vrillees_website.partials import render_partial_response
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+    from django.db.models import QuerySet
+    from django.template.response import TemplateResponse
+
+    from vrillees_website.http.request import HttpRequest
+
+    ObjectList: TypeAlias = Sequence | QuerySet
+
+
+@dataclasses.dataclass(kw_only=True)
+class PaginationConfig:
+    """Configuration for render_paginated_response."""
+
+    param: str = "page"
+    target: str = "pagination"
+    partial: str = "pagination"
+    paginator: Paginator | None = None
+
+
+def render_paginated_response(
+    request: HttpRequest,
+    template_name: str,
+    object_list: ObjectList,
+    extra_context: dict | None = None,
+    config: PaginationConfig | None = None,
+) -> TemplateResponse:
+    """Render a paginated template response.
+
+    Wraps ``render_partial_response`` with paginated context. Passes the
+    ``Page`` object as ``page`` and honours the HTMX partial-swap pattern
+    so only the list fragment is returned on subsequent page requests.
+
+    Args:
+        request: The current HTTP request.
+        template_name: Template to render.
+        object_list: Queryset or sequence to paginate.
+        extra_context: Additional template context.
+        config: Pagination configuration. Defaults to PaginationConfig().
+    """
+    config = config or PaginationConfig()
+
+    paginator = config.paginator or Paginator(object_list, settings.DEFAULT_PAGE_SIZE)
+
+    page = paginator.get_page(request.GET.get(config.param, 1))
+
+    return render_partial_response(
+        request,
+        template_name,
+        {
+            "page": page,
+            "paginator": paginator,
+            "pagination_config": config,
+        }
+        | (extra_context or {}),
+        target=config.target,
+        partial=config.partial,
+    )

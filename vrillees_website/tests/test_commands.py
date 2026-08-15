@@ -1,0 +1,872 @@
+import importlib
+import json
+import sys
+from io import StringIO
+from unittest.mock import AsyncMock, MagicMock
+
+import aiohttp
+import pytest
+from django.contrib.sites.models import Site
+from django.core.management import call_command
+from django.core.management.base import CommandError
+
+import vrillees_website.management.commands.translate as translate_cmd
+
+MOCK_VENDORS = {
+    "htmx": {
+        "version": "2.0.7",
+        "source": "https://github.com/bigskysoftware/htmx/releases/download/v{version}/htmx.min.js",
+        "dest": "static/vendor/htmx.js",
+    },
+    "daisyui": {
+        "version": "2.0.7",
+        "files": [
+            {
+                "source": "https://github.com/saadeghi/daisyui/releases/download/v{version}/daisyui.mjs",
+                "dest": "tailwind/daisyui.mjs",
+            },
+        ],
+    },
+}
+
+
+def _make_get_cm(mocker, *, status=200, json_data=None, body=b""):
+    """Return a mock async context manager for aiohttp.ClientSession.get."""
+    resp = AsyncMock()
+    resp.status = status
+    resp.json = AsyncMock(return_value=json_data)
+    resp.read = AsyncMock(return_value=body)
+    cm = MagicMock()
+    cm.__aenter__ = AsyncMock(return_value=resp)
+    cm.__aexit__ = AsyncMock(return_value=False)
+    return cm
+
+
+# ---------------------------------------------------------------------------
+# set_default_site
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+class TestSetDefaultSite:
+    def test_sets_domain_and_name(self):
+        call_command("set_default_site", "example.com", "My App")
+        site = Site.objects.get_current()
+        assert site.domain == "example.com"
+        assert site.name == "My App"
+
+    def test_outputs_success_message(self):
+        out = StringIO()
+        call_command("set_default_site", "example.com", "My App", stdout=out)
+        assert "example.com" in out.getvalue()
+
+
+# ---------------------------------------------------------------------------
+# sync_vendors fixtures
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def vendors_path(tmp_path, settings):
+    path = tmp_path / "vendors.json"
+    path.write_text(json.dumps(MOCK_VENDORS))
+    settings.VENDORS_FILE = path
+    return path
+
+
+# ---------------------------------------------------------------------------
+# sync_vendors
+# ---------------------------------------------------------------------------
+
+
+class TestSyncVendors:
+    def test_check_shows_available_updates(self, vendors_path, mocker, capsys):
+        mocker.patch(
+            "vrillees_website.management.commands.sync_vendors.Command._latest_github_version",
+            return_value="2.0.8",
+        )
+        call_command("sync_vendors", "--check")
+        output = capsys.readouterr().out
+        assert "2.0.7 -> 2.0.8" in output
+        assert "update(s) available" in output
+
+    def test_check_up_to_date(self, vendors_path, mocker, capsys):
+        mocker.patch(
+            "vrillees_website.management.commands.sync_vendors.Command._latest_github_version",
+            return_value="2.0.7",
+        )
+        call_command("sync_vendors", "--check")
+        output = capsys.readouterr().out
+        assert "up to date" in output
+
+    def test_check_rejects_downgrade(self, vendors_path, mocker, capsys):
+        """Upstream reporting an older version must not trigger a 'download'."""
+        mocker.patch(
+            "vrillees_website.management.commands.sync_vendors.Command._latest_github_version",
+            return_value="1.0.0",
+        )
+        mock_download = mocker.patch(
+            "vrillees_website.management.commands.sync_vendors.Command._download_file",
+        )
+        call_command("sync_vendors", "--no-input")
+        output = capsys.readouterr().out
+        assert "upstream reports older 1.0.0" in output
+        assert "2.0.7 -> 1.0.0" not in output
+        mock_download.assert_not_called()
+
+    def test_check_prerelease_upgrade(self, tmp_path, settings, mocker, capsys):
+        """Prerelease tags (e.g. htmx 4.0.0-beta3 -> -beta4) compare correctly."""
+        path = tmp_path / "vendors.json"
+        path.write_text(
+            json.dumps(
+                {
+                    "htmx": {
+                        "version": "4.0.0-beta3",
+                        "source": "https://example.com/htmx@{version}.js",
+                        "dest": "static/vendor/htmx.js",
+                    }
+                }
+            )
+        )
+        settings.VENDORS_FILE = path
+        mocker.patch(
+            "vrillees_website.management.commands.sync_vendors.Command._latest_github_version",
+            return_value="4.0.0-beta4",
+        )
+        call_command("sync_vendors", "--check")
+        assert "4.0.0-beta3 -> 4.0.0-beta4" in capsys.readouterr().out
+
+    def test_check_prerelease_downgrade_rejected(
+        self, tmp_path, settings, mocker, capsys
+    ):
+        """Prerelease downgrade (beta4 -> beta3) is rejected."""
+        path = tmp_path / "vendors.json"
+        path.write_text(
+            json.dumps(
+                {
+                    "htmx": {
+                        "version": "4.0.0-beta4",
+                        "source": "https://example.com/htmx@{version}.js",
+                        "dest": "static/vendor/htmx.js",
+                    }
+                }
+            )
+        )
+        settings.VENDORS_FILE = path
+        mocker.patch(
+            "vrillees_website.management.commands.sync_vendors.Command._latest_github_version",
+            return_value="4.0.0-beta3",
+        )
+        call_command("sync_vendors", "--check")
+        assert "upstream reports older 4.0.0-beta3" in capsys.readouterr().out
+
+    def test_check_invalid_version_warns(self, vendors_path, mocker, capsys):
+        """Unparseable version strings warn and are treated as not-an-update."""
+        mocker.patch(
+            "vrillees_website.management.commands.sync_vendors.Command._latest_github_version",
+            return_value="not-a-version",
+        )
+        mock_download = mocker.patch(
+            "vrillees_website.management.commands.sync_vendors.Command._download_file",
+        )
+        call_command("sync_vendors", "--no-input")
+        output = capsys.readouterr().out
+        assert "cannot compare versions" in output
+        mock_download.assert_not_called()
+
+    def test_download_all_packages(self, vendors_path, mocker, tmp_path):
+        (tmp_path / "static" / "vendor").mkdir(parents=True)
+        mocker.patch(
+            "vrillees_website.management.commands.sync_vendors.Command._latest_github_version",
+            return_value="2.0.8",
+        )
+        mock_download = mocker.patch(
+            "vrillees_website.management.commands.sync_vendors.Command._download_file",
+        )
+        call_command("sync_vendors", "--no-input")
+        calls = [str(c) for c in mock_download.call_args_list]
+        assert any("htmx" in c for c in calls)
+        assert any("daisyui" in c for c in calls)
+
+    def test_download_updates_vendors_json(self, vendors_path, mocker, tmp_path):
+        (tmp_path / "static" / "vendor").mkdir(parents=True)
+        mocker.patch(
+            "vrillees_website.management.commands.sync_vendors.Command._latest_github_version",
+            return_value="2.0.8",
+        )
+        mocker.patch(
+            "vrillees_website.management.commands.sync_vendors.Command._download_file"
+        )
+        call_command("sync_vendors", "--no-input")
+        updated = json.loads(vendors_path.read_text())
+        assert updated["htmx"]["version"] == "2.0.8"
+        assert updated["daisyui"]["version"] == "2.0.8"
+
+    def test_missing_vendors_file_raises_error(self, tmp_path, settings):
+        settings.VENDORS_FILE = tmp_path / "vendors.json"
+        with pytest.raises(CommandError, match="not found"):
+            call_command("sync_vendors")
+
+    def test_invalid_json_vendors_file_raises_error(self, tmp_path, settings):
+        path = tmp_path / "vendors.json"
+        path.write_text("not valid json {")
+        settings.VENDORS_FILE = path
+        with pytest.raises(CommandError, match="not valid JSON"):
+            call_command("sync_vendors")
+
+    def test_malformed_vendor_raises_error(self, tmp_path, settings):
+        path = tmp_path / "vendors.json"
+        path.write_text(json.dumps({"htmx": {"source": "https://example.com/htmx.js"}}))
+        settings.VENDORS_FILE = path
+        with pytest.raises(CommandError, match="Malformed vendors config"):
+            call_command("sync_vendors", "--check")
+
+    def test_empty_vendors_file_raises_error(self, tmp_path, settings):
+        path = tmp_path / "vendors.json"
+        path.write_text("{}")
+        settings.VENDORS_FILE = path
+        with pytest.raises(CommandError, match="No vendors defined"):
+            call_command("sync_vendors")
+
+    def test_confirmation_prompt_aborts(self, vendors_path, mocker, capsys):
+        mocker.patch(
+            "vrillees_website.management.commands.sync_vendors.Command._latest_github_version",
+            return_value="2.0.8",
+        )
+        mocker.patch("builtins.input", return_value="n")
+        mock_download = mocker.patch(
+            "vrillees_website.management.commands.sync_vendors.Command._download_file",
+        )
+        call_command("sync_vendors")
+        mock_download.assert_not_called()
+        assert "Aborted" in capsys.readouterr().out
+
+    def test_confirmation_prompt_proceeds(self, vendors_path, mocker, tmp_path):
+        (tmp_path / "static" / "vendor").mkdir(parents=True)
+        mocker.patch(
+            "vrillees_website.management.commands.sync_vendors.Command._latest_github_version",
+            return_value="2.0.8",
+        )
+        mocker.patch("builtins.input", return_value="y")
+        mock_download = mocker.patch(
+            "vrillees_website.management.commands.sync_vendors.Command._download_file",
+        )
+        call_command("sync_vendors")
+        assert mock_download.call_count > 0
+
+    def test_api_failure_warns_and_continues(self, vendors_path, mocker, capsys):
+        mocker.patch(
+            "vrillees_website.management.commands.sync_vendors.Command._latest_github_version",
+            side_effect=TimeoutError("timed out"),
+        )
+        call_command("sync_vendors", "--check")
+        output = capsys.readouterr().out
+        assert "failed to check" in output
+
+    def test_download_failure_raises_error(self, vendors_path, mocker, tmp_path):
+        (tmp_path / "static" / "vendor").mkdir(parents=True)
+        mocker.patch(
+            "vrillees_website.management.commands.sync_vendors.Command._latest_github_version",
+            return_value="2.0.8",
+        )
+        mocker.patch(
+            "vrillees_website.management.commands.sync_vendors.Command._download_file",
+            side_effect=CommandError("Failed to download htmx: connection refused"),
+        )
+        with pytest.raises(CommandError, match="Failed to download"):
+            call_command("sync_vendors", "--no-input")
+
+    def test_non_github_url_warns_version_unknown(self, tmp_path, settings, capsys):
+        """Non-GitHub URL with no repo: _latest_github_version returns None → warning."""
+        path = tmp_path / "vendors.json"
+        path.write_text(
+            json.dumps(
+                {
+                    "mylib": {
+                        "version": "1.0.0",
+                        "source": "https://cdn.example.com/mylib.js",
+                        "dest": "static/vendor/mylib.js",
+                    }
+                }
+            )
+        )
+        settings.VENDORS_FILE = path
+        call_command("sync_vendors", "--check")
+        assert "could not determine latest version" in capsys.readouterr().out
+
+    def test_github_version_resolved_from_url(self, tmp_path, settings, capsys, mocker):
+        """GitHub URL with no explicit repo: version resolved via regex + API call."""
+        path = tmp_path / "vendors.json"
+        path.write_text(
+            json.dumps(
+                {
+                    "mylib": {
+                        "version": "1.0.0",
+                        "source": "https://github.com/owner/mylib/releases/download/v{version}/mylib.js",
+                        "dest": "static/vendor/mylib.js",
+                    }
+                }
+            )
+        )
+        settings.VENDORS_FILE = path
+        mocker.patch(
+            "aiohttp.ClientSession.get",
+            return_value=_make_get_cm(mocker, json_data={"tag_name": "v2.0.0"}),
+        )
+        call_command("sync_vendors", "--check")
+        assert "1.0.0 -> 2.0.0" in capsys.readouterr().out
+
+    def test_releases_api_404_falls_back_to_tags(
+        self, tmp_path, settings, capsys, mocker
+    ):
+        """404 from /releases/latest falls back to /tags to resolve version."""
+        path = tmp_path / "vendors.json"
+        path.write_text(
+            json.dumps(
+                {
+                    "mylib": {
+                        "version": "1.0.0",
+                        "source": "https://github.com/owner/mylib/releases/download/v{version}/mylib.js",
+                        "dest": "static/vendor/mylib.js",
+                    }
+                }
+            )
+        )
+        settings.VENDORS_FILE = path
+        mocker.patch(
+            "aiohttp.ClientSession.get",
+            side_effect=[
+                _make_get_cm(mocker, status=404, json_data={"message": "Not Found"}),
+                _make_get_cm(mocker, json_data=[{"name": "v2.0.0"}]),
+            ],
+        )
+        call_command("sync_vendors", "--check")
+        assert "1.0.0 -> 2.0.0" in capsys.readouterr().out
+
+    def test_releases_api_error_warns_and_returns_none(
+        self, tmp_path, settings, capsys, mocker
+    ):
+        """Non-404 API error (e.g., 403 rate limit) warns and continues."""
+        path = tmp_path / "vendors.json"
+        path.write_text(
+            json.dumps(
+                {
+                    "mylib": {
+                        "version": "1.0.0",
+                        "source": "https://github.com/owner/mylib/releases/download/v{version}/mylib.js",
+                        "dest": "static/vendor/mylib.js",
+                    }
+                }
+            )
+        )
+        settings.VENDORS_FILE = path
+        mocker.patch(
+            "aiohttp.ClientSession.get",
+            return_value=_make_get_cm(
+                mocker, status=403, json_data={"message": "rate limit exceeded"}
+            ),
+        )
+        call_command("sync_vendors", "--check")
+        assert "could not determine latest version" in capsys.readouterr().out
+
+    def test_releases_api_500_warns_and_returns_none(
+        self, tmp_path, settings, capsys, mocker
+    ):
+        """500 server error warns and continues."""
+        path = tmp_path / "vendors.json"
+        path.write_text(
+            json.dumps(
+                {
+                    "mylib": {
+                        "version": "1.0.0",
+                        "source": "https://github.com/owner/mylib/releases/download/v{version}/mylib.js",
+                        "dest": "static/vendor/mylib.js",
+                    }
+                }
+            )
+        )
+        settings.VENDORS_FILE = path
+        mocker.patch(
+            "aiohttp.ClientSession.get",
+            return_value=_make_get_cm(
+                mocker, status=500, json_data={"message": "Internal Server Error"}
+            ),
+        )
+        call_command("sync_vendors", "--check")
+        assert "could not determine latest version" in capsys.readouterr().out
+
+    def test_releases_api_404_and_tags_http_error_returns_none(
+        self, tmp_path, settings, capsys, mocker
+    ):
+        """404 from /releases/latest with non-OK /tags response returns None."""
+        path = tmp_path / "vendors.json"
+        path.write_text(
+            json.dumps(
+                {
+                    "mylib": {
+                        "version": "1.0.0",
+                        "source": "https://github.com/owner/mylib/releases/download/v{version}/mylib.js",
+                        "dest": "static/vendor/mylib.js",
+                    }
+                }
+            )
+        )
+        settings.VENDORS_FILE = path
+        mocker.patch(
+            "aiohttp.ClientSession.get",
+            side_effect=[
+                _make_get_cm(mocker, status=404, json_data={"message": "Not Found"}),
+                _make_get_cm(mocker, status=500, json_data={"message": "boom"}),
+            ],
+        )
+        call_command("sync_vendors", "--check")
+        assert "could not determine latest version" in capsys.readouterr().out
+
+    def test_explicit_repo_used_for_lookup(self, tmp_path, settings, capsys, mocker):
+        """Explicit `repo` config is used directly, bypassing URL regex extraction."""
+        path = tmp_path / "vendors.json"
+        path.write_text(
+            json.dumps(
+                {
+                    "mylib": {
+                        "version": "1.0.0",
+                        "repo": "explicit/repo",
+                        "source": "https://cdn.jsdelivr.net/npm/mylib@{version}.js",
+                        "dest": "static/vendor/mylib.js",
+                    }
+                }
+            )
+        )
+        settings.VENDORS_FILE = path
+        mocker.patch(
+            "aiohttp.ClientSession.get",
+            return_value=_make_get_cm(mocker, json_data={"tag_name": "v2.0.0"}),
+        )
+        call_command("sync_vendors", "--check")
+        assert "1.0.0 -> 2.0.0" in capsys.readouterr().out
+
+    def test_releases_api_404_and_tags_empty_returns_none(
+        self, tmp_path, settings, capsys, mocker
+    ):
+        """404 from /releases/latest with empty tags list returns None."""
+        path = tmp_path / "vendors.json"
+        path.write_text(
+            json.dumps(
+                {
+                    "mylib": {
+                        "version": "1.0.0",
+                        "source": "https://github.com/owner/mylib/releases/download/v{version}/mylib.js",
+                        "dest": "static/vendor/mylib.js",
+                    }
+                }
+            )
+        )
+        settings.VENDORS_FILE = path
+        mocker.patch(
+            "aiohttp.ClientSession.get",
+            side_effect=[
+                _make_get_cm(mocker, status=404, json_data={"message": "Not Found"}),
+                _make_get_cm(mocker, json_data=[]),
+            ],
+        )
+        call_command("sync_vendors", "--check")
+        assert "could not determine latest version" in capsys.readouterr().out
+
+    def test_download_file_writes_content(self, vendors_path, tmp_path, mocker):
+        """_download_file success path: HTTP response body written to dest file."""
+        (tmp_path / "static" / "vendor").mkdir(parents=True)
+        (tmp_path / "tailwind").mkdir(parents=True)
+        mocker.patch(
+            "vrillees_website.management.commands.sync_vendors.Command._latest_github_version",
+            return_value="2.0.8",
+        )
+        mocker.patch(
+            "aiohttp.ClientSession.get",
+            return_value=_make_get_cm(mocker, body=b"fake content"),
+        )
+        call_command("sync_vendors", "--no-input")
+        assert (
+            tmp_path / "static" / "vendor" / "htmx.js"
+        ).read_bytes() == b"fake content"
+        assert (tmp_path / "tailwind" / "daisyui.mjs").read_bytes() == b"fake content"
+
+    def test_download_http_error_raises_command_error(self, vendors_path, mocker):
+        """_download_file ClientError path: raises CommandError."""
+        mocker.patch(
+            "vrillees_website.management.commands.sync_vendors.Command._latest_github_version",
+            return_value="2.0.8",
+        )
+        mock_cm = MagicMock()
+        mock_cm.__aenter__ = AsyncMock(
+            side_effect=aiohttp.ClientError("connection refused")
+        )
+        mock_cm.__aexit__ = AsyncMock(return_value=False)
+        mocker.patch("aiohttp.ClientSession.get", return_value=mock_cm)
+        with pytest.raises(CommandError, match="Failed to download"):
+            call_command("sync_vendors", "--no-input")
+
+
+# ---------------------------------------------------------------------------
+# translate
+# ---------------------------------------------------------------------------
+
+
+def _make_entry(
+    *,
+    msgid: str,
+    msgstr: str = "",
+    fuzzy: bool = False,
+    msgid_plural: str = "",
+    msgstr_plural: dict | None = None,
+    comment: str = "",
+) -> MagicMock:
+    entry = MagicMock()
+    entry.msgid = msgid
+    entry.msgstr = msgstr
+    entry.fuzzy = fuzzy
+    entry.msgid_plural = msgid_plural
+    entry.msgstr_plural = msgstr_plural or {}
+    entry.comment = comment
+    entry.flags = ["fuzzy"] if fuzzy else []
+    entry.obsolete = False
+    has_translation = bool(msgstr) or bool(
+        msgstr_plural and all(msgstr_plural.values())
+    )
+    entry.translated = MagicMock(return_value=has_translation)
+    return entry
+
+
+def _make_polib_mock(entries: list) -> MagicMock:
+    mock = MagicMock()
+    po = MagicMock()
+    po.__iter__ = MagicMock(return_value=iter(entries))
+    mock.pofile.return_value = po
+    return mock, po
+
+
+@pytest.fixture
+def mock_polib(mocker):
+    mock = MagicMock()
+    mocker.patch.object(translate_cmd, "polib", mock)
+    return mock
+
+
+@pytest.fixture
+def po_file(tmp_path):
+    f = tmp_path / "django.po"
+    f.touch()
+    return f
+
+
+@pytest.fixture
+def locale_dir(tmp_path):
+    """Create a locale directory with two .po files."""
+    base = tmp_path / "locale" / "fr" / "LC_MESSAGES"
+    base.mkdir(parents=True)
+    for name in ("django.po", "djangojs.po"):
+        (base / name).touch()
+    return tmp_path / "locale"
+
+
+class TestTranslateCommand:
+    def test_missing_polib_raises_error(self, mocker, po_file):
+        mocker.patch.object(translate_cmd, "polib", None)
+        with pytest.raises(CommandError, match="polib is not installed"):
+            call_command("translate", "extract", str(po_file))
+
+    def test_polib_import_error_branch(self):
+        original = sys.modules.get("polib", MagicMock())
+        sys.modules["polib"] = None  # type: ignore[assignment]
+        try:
+            importlib.reload(translate_cmd)
+            assert translate_cmd.polib is None
+        finally:
+            sys.modules["polib"] = original
+            importlib.reload(translate_cmd)
+
+    def test_missing_po_file_raises_error(self, mock_polib, tmp_path):
+        with pytest.raises(CommandError, match=r"\.po file not found"):
+            call_command("translate", "extract", str(tmp_path / "missing.po"))
+
+    def test_apply_without_translations_arg_raises_error(self, mock_polib, po_file):
+        with pytest.raises(CommandError, match="required for apply"):
+            call_command("translate", "apply", str(po_file))
+
+    def test_apply_missing_translations_file_raises_error(
+        self, mock_polib, po_file, tmp_path
+    ):
+        with pytest.raises(CommandError, match="Translations file not found"):
+            call_command(
+                "translate", "apply", str(po_file), str(tmp_path / "missing.json")
+            )
+
+    def test_extract_empty_po_returns_empty_array(self, mocker, po_file):
+        mock, _po = _make_polib_mock([])
+        mocker.patch.object(translate_cmd, "polib", mock)
+        out = StringIO()
+        call_command("translate", "extract", str(po_file), stdout=out)
+        assert json.loads(out.getvalue()) == []
+
+    def test_extract_skips_already_translated_entry(self, mocker, po_file):
+        entry = _make_entry(msgid="Save", msgstr="Enregistrer")
+        mock, _po = _make_polib_mock([entry])
+        mocker.patch.object(translate_cmd, "polib", mock)
+        out = StringIO()
+        call_command("translate", "extract", str(po_file), stdout=out)
+        assert json.loads(out.getvalue()) == []
+
+    def test_extract_includes_empty_msgstr(self, mocker, po_file):
+        entry = _make_entry(msgid="Save", msgstr="")
+        mock, _po = _make_polib_mock([entry])
+        mocker.patch.object(translate_cmd, "polib", mock)
+        out = StringIO()
+        call_command("translate", "extract", str(po_file), stdout=out)
+        result = json.loads(out.getvalue())
+        assert len(result) == 1
+        assert result[0]["msgid"] == "Save"
+
+    def test_extract_includes_fuzzy_entry(self, mocker, po_file):
+        entry = _make_entry(msgid="Save", msgstr="Sauvegarder", fuzzy=True)
+        mock, _po = _make_polib_mock([entry])
+        mocker.patch.object(translate_cmd, "polib", mock)
+        out = StringIO()
+        call_command("translate", "extract", str(po_file), stdout=out)
+        result = json.loads(out.getvalue())
+        assert len(result) == 1
+        assert result[0]["fuzzy"] is True
+
+    def test_extract_includes_plural_fields(self, mocker, po_file):
+        entry = _make_entry(
+            msgid="%(n)s item",
+            msgid_plural="%(n)s items",
+            msgstr_plural={0: "", 1: ""},
+        )
+        mock, _po = _make_polib_mock([entry])
+        mocker.patch.object(translate_cmd, "polib", mock)
+        out = StringIO()
+        call_command("translate", "extract", str(po_file), stdout=out)
+        result = json.loads(out.getvalue())
+        assert result[0]["msgid_plural"] == "%(n)s items"
+
+    def test_extract_skips_plural_with_all_forms_filled(self, mocker, po_file):
+        entry = _make_entry(
+            msgid="%(n)s item",
+            msgid_plural="%(n)s items",
+            msgstr_plural={0: "%(n)s élément", 1: "%(n)s éléments"},
+        )
+        mock, _po = _make_polib_mock([entry])
+        mocker.patch.object(translate_cmd, "polib", mock)
+        out = StringIO()
+        call_command("translate", "extract", str(po_file), stdout=out)
+        assert json.loads(out.getvalue()) == []
+
+    def test_extract_includes_comment(self, mocker, po_file):
+        entry = _make_entry(msgid="Save", comment="Translators: save button")
+        mock, _po = _make_polib_mock([entry])
+        mocker.patch.object(translate_cmd, "polib", mock)
+        out = StringIO()
+        call_command("translate", "extract", str(po_file), stdout=out)
+        result = json.loads(out.getvalue())
+        assert result[0]["comment"] == "Translators: save button"
+
+    def test_apply_updates_msgstr_and_saves(self, mocker, po_file, tmp_path):
+        entry = _make_entry(msgid="Save", msgstr="")
+        mock, po = _make_polib_mock([entry])
+        mocker.patch.object(translate_cmd, "polib", mock)
+        translations = tmp_path / "t.json"
+        translations.write_text(
+            json.dumps([{"msgid": "Save", "msgstr": "Enregistrer"}])
+        )
+        call_command("translate", "apply", str(po_file), str(translations))
+        assert entry.msgstr == "Enregistrer"
+        po.save.assert_called_once_with(str(po_file))
+
+    def test_apply_strips_fuzzy_flag(self, mocker, po_file, tmp_path):
+        entry = _make_entry(msgid="Save", msgstr="Sauvegarder", fuzzy=True)
+        mock, _po = _make_polib_mock([entry])
+        mocker.patch.object(translate_cmd, "polib", mock)
+        translations = tmp_path / "t.json"
+        translations.write_text(
+            json.dumps([{"msgid": "Save", "msgstr": "Enregistrer"}])
+        )
+        call_command("translate", "apply", str(po_file), str(translations))
+        assert "fuzzy" not in entry.flags
+
+    def test_apply_updates_plural_forms(self, mocker, po_file, tmp_path):
+        entry = _make_entry(
+            msgid="%(n)s item",
+            msgid_plural="%(n)s items",
+            msgstr_plural={0: "", 1: ""},
+        )
+        mock, _po = _make_polib_mock([entry])
+        mocker.patch.object(translate_cmd, "polib", mock)
+        translations = tmp_path / "t.json"
+        translations.write_text(
+            json.dumps(
+                [
+                    {
+                        "msgid": "%(n)s item",
+                        "msgstr": "",
+                        "msgstr_plural": {"0": "%(n)s élément", "1": "%(n)s éléments"},
+                    }
+                ]
+            )
+        )
+        call_command("translate", "apply", str(po_file), str(translations))
+        assert entry.msgstr_plural[0] == "%(n)s élément"
+        assert entry.msgstr_plural[1] == "%(n)s éléments"
+
+    def test_apply_skips_entries_not_in_translations(self, mocker, po_file, tmp_path):
+        entry = _make_entry(msgid="Save", msgstr="")
+        mock, _po = _make_polib_mock([entry])
+        mocker.patch.object(translate_cmd, "polib", mock)
+        translations = tmp_path / "t.json"
+        translations.write_text(json.dumps([{"msgid": "Cancel", "msgstr": "Annuler"}]))
+        call_command("translate", "apply", str(po_file), str(translations))
+        assert entry.msgstr == ""
+
+    def test_apply_skips_entry_with_empty_msgstr_in_translations(
+        self, mocker, po_file, tmp_path
+    ):
+        entry = _make_entry(msgid="Save", msgstr="old")
+        mock, _po = _make_polib_mock([entry])
+        mocker.patch.object(translate_cmd, "polib", mock)
+        translations = tmp_path / "t.json"
+        translations.write_text(json.dumps([{"msgid": "Save", "msgstr": ""}]))
+        call_command("translate", "apply", str(po_file), str(translations))
+        assert entry.msgstr == "old"
+
+    def test_apply_outputs_success_message(self, mocker, po_file, tmp_path):
+        entry = _make_entry(msgid="Save", msgstr="")
+        mock, _po = _make_polib_mock([entry])
+        mocker.patch.object(translate_cmd, "polib", mock)
+        translations = tmp_path / "t.json"
+        translations.write_text(
+            json.dumps([{"msgid": "Save", "msgstr": "Enregistrer"}])
+        )
+        out = StringIO()
+        call_command("translate", "apply", str(po_file), str(translations), stdout=out)
+        assert "1 translation" in out.getvalue()
+
+    def test_count_summary(self, mocker, po_file):
+        entries = [
+            _make_entry(msgid="Save", msgstr="Enregistrer"),
+            _make_entry(msgid="Cancel", msgstr="Annuler"),
+            _make_entry(msgid="New", msgstr=""),
+            _make_entry(msgid="Edit", msgstr="Modifier"),
+        ]
+        mock, po = _make_polib_mock(entries)
+        po.__len__ = MagicMock(return_value=4)
+        mocker.patch.object(translate_cmd, "polib", mock)
+        out = StringIO()
+        call_command("translate", "count", str(po_file), stdout=out)
+        assert "Translated:   3" in out.getvalue()
+        assert "Untranslated: 1" in out.getvalue()
+        assert "Fuzzy:        0" in out.getvalue()
+
+    def test_count_fuzzy_entry(self, mocker, po_file):
+        entry = _make_entry(msgid="Save", msgstr="Sauvegarder", fuzzy=True)
+        mock, po = _make_polib_mock([entry])
+        po.__len__ = MagicMock(return_value=1)
+        mocker.patch.object(translate_cmd, "polib", mock)
+        out = StringIO()
+        call_command("translate", "count", str(po_file), stdout=out)
+        assert "Fuzzy:        1" in out.getvalue()
+
+    def test_count_obsolete_entry(self, mocker, po_file):
+        entry = _make_entry(msgid="Old", msgstr="Vieux")
+        entry.obsolete = True
+        mock, po = _make_polib_mock([entry])
+        po.__len__ = MagicMock(return_value=1)
+        mocker.patch.object(translate_cmd, "polib", mock)
+        out = StringIO()
+        call_command("translate", "count", str(po_file), stdout=out)
+        assert "Obsolete:     1" in out.getvalue()
+        assert "Untranslated: 0" in out.getvalue()
+
+    def test_count_plural_translated(self, mocker, po_file):
+        entry = _make_entry(
+            msgid="%(n)s item",
+            msgid_plural="%(n)s items",
+            msgstr_plural={0: "%(n)s élément", 1: "%(n)s éléments"},
+        )
+        mock, po = _make_polib_mock([entry])
+        po.__len__ = MagicMock(return_value=1)
+        mocker.patch.object(translate_cmd, "polib", mock)
+        out = StringIO()
+        call_command("translate", "count", str(po_file), stdout=out)
+        assert "Translated:   1" in out.getvalue()
+        assert "Untranslated: 0" in out.getvalue()
+
+    def test_count_plural_untranslated(self, mocker, po_file):
+        entry = _make_entry(
+            msgid="%(n)s item",
+            msgid_plural="%(n)s items",
+            msgstr_plural={0: "", 1: ""},
+        )
+        mock, po = _make_polib_mock([entry])
+        po.__len__ = MagicMock(return_value=1)
+        mocker.patch.object(translate_cmd, "polib", mock)
+        out = StringIO()
+        call_command("translate", "count", str(po_file), stdout=out)
+        assert "Translated:   0" in out.getvalue()
+        assert "Untranslated: 1" in out.getvalue()
+
+    def test_count_locale_directory(self, mocker, locale_dir):
+        entry = _make_entry(msgid="Save", msgstr="Enregistrer")
+        mock_po = MagicMock()
+        mock_po.__iter__ = MagicMock(return_value=iter([entry]))
+        mock_po.__len__ = MagicMock(return_value=1)
+        mock_polib = MagicMock()
+        mock_polib.pofile.return_value = mock_po
+        mocker.patch.object(translate_cmd, "polib", mock_polib)
+        out = StringIO()
+        call_command("translate", "count", str(locale_dir / "fr"), stdout=out)
+        result = out.getvalue()
+        assert "django.po" in result
+        assert "djangojs.po" in result
+        assert "totals" in result
+
+    def test_count_locale_code_resolves(self, mocker, locale_dir, monkeypatch):
+        monkeypatch.chdir(locale_dir.parent)
+        entry = _make_entry(msgid="Hello", msgstr="Bonjour")
+        mock_po = MagicMock()
+        mock_po.__iter__ = MagicMock(return_value=iter([entry]))
+        mock_po.__len__ = MagicMock(return_value=1)
+        mock_polib = MagicMock()
+        mock_polib.pofile.return_value = mock_po
+        mocker.patch.object(translate_cmd, "polib", mock_polib)
+        out = StringIO()
+        call_command("translate", "count", "fr", stdout=out)
+        assert "django.po" in out.getvalue()
+
+    def test_count_nonexistent_po_file_raises_error(self, mocker, tmp_path):
+        mocker.patch.object(translate_cmd, "polib", MagicMock())
+        po_path = tmp_path / "nonexistent.po"
+        with pytest.raises(CommandError, match="File not found"):
+            call_command("translate", "count", str(po_path))
+
+    def test_count_nonexistent_locale_code_raises_error(
+        self, mocker, locale_dir, monkeypatch
+    ):
+        monkeypatch.chdir(locale_dir.parent)
+        mocker.patch.object(translate_cmd, "polib", MagicMock())
+        with pytest.raises(CommandError, match="Not a .po file or locale directory"):
+            call_command("translate", "count", "xx")
+
+    def test_count_empty_resolved_locale_dir_raises_error(
+        self, mocker, tmp_path, monkeypatch
+    ):
+        mocker.patch.object(translate_cmd, "polib", MagicMock())
+        dir_path = tmp_path / "locale" / "xx"
+        dir_path.mkdir(parents=True)
+        monkeypatch.chdir(tmp_path)
+        with pytest.raises(CommandError, match="No .po files found"):
+            call_command("translate", "count", "xx")
+
+    def test_count_empty_locale_dir_raises_error(self, mocker, tmp_path):
+        mocker.patch.object(translate_cmd, "polib", MagicMock())
+        empty = tmp_path / "locale" / "xx" / "LC_MESSAGES"
+        empty.mkdir(parents=True)
+        with pytest.raises(CommandError, match="No .po files found"):
+            call_command("translate", "count", str(empty.parent.parent))
