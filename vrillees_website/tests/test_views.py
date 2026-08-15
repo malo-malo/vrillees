@@ -11,13 +11,6 @@ class TestIndex:
 
 
 @pytest.mark.django_db
-class TestAbout:
-    def test_get(self, client):
-        response = client.get(reverse("about"))
-        assert response.status_code == 200
-
-
-@pytest.mark.django_db
 class TestPrivacy:
     def test_get(self, client):
         response = client.get(reverse("privacy"))

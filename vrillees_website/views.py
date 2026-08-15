@@ -27,18 +27,6 @@ def index(request: HttpRequest) -> TemplateResponse:
 
 
 @require_safe
-def about(request: HttpRequest) -> TemplateResponse:
-    """About page."""
-    return TemplateResponse(
-        request,
-        "about.html",
-        {
-            "contact_email": settings.CONTACT_EMAIL,
-        },
-    )
-
-
-@require_safe
 def privacy(request: HttpRequest) -> TemplateResponse:
     """Renders Privacy page."""
     return TemplateResponse(
@@ -59,7 +47,7 @@ def robots(_) -> TextResponse:
         "\n".join(
             [
                 "User-Agent: *",
-                *[f"Allow: {reverse(name)}$" for name in ["index", "about"]],
+                *[f"Allow: {reverse(name)}$" for name in ["index"]],
                 "Disallow: /",
             ]
         ),

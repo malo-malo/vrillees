@@ -8,7 +8,6 @@ from vrillees_website import views
 
 urlpatterns = [
     path("", views.index, name="index"),
-    path("about/", views.about, name="about"),
     path("robots.txt", views.robots, name="robots"),
     path("manifest.json", views.manifest, name="manifest"),
     path(".well-known/assetlinks.json", views.assetlinks, name="assetlinks"),
