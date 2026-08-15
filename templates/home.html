@@ -4,13 +4,13 @@
 {% block content %}
     <div class="py-12 text-center">
         <h1 class="text-4xl font-bold tracking-tight">
-            {% blocktranslate with name=request.site.name %}Welcome to {{ name }}{% endblocktranslate %}
+            {{ request.site.name }}
         </h1>
         <p class="mt-4 text-lg text-base-content/60">
-            {{ request.site.name }}
+            Il est super
         </p>
         <div class="flex gap-4 justify-center mt-8">
-            <a href="{% url 'index' %}" class="btn btn-secondary">{% translate "Exemple de lien" %}</a>
+            <a href="{% url 'index' %}" class="btn btn-secondary">Exemple de lien</a>
         </div>
     </div>
 {% endblock content %}
