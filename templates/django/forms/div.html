@@ -1,5 +1,5 @@
 {{ errors }}
 {% for field in hidden_fields %}{{ field }}{% endfor %}
 {% for field, errors in fields %}
-  {{ field.as_field_group }}
+    {{ field.as_field_group }}
 {% endfor %}
