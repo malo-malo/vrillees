@@ -1,7 +1,6 @@
 from typing import TYPE_CHECKING
 
 import pytest
-from allauth.account.models import EmailAddress
 from django.urls import reverse
 
 from vrillees_website.users.tests.factories import UserFactory
@@ -13,9 +12,7 @@ if TYPE_CHECKING:
 @pytest.fixture
 def e2e_user(transactional_db):
     """Verified user for E2E tests."""
-    user = UserFactory()
-    EmailAddress.objects.create(user=user, email=user.email, verified=True)
-    return user
+    return UserFactory()
 
 
 @pytest.fixture

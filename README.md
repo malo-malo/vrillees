@@ -115,7 +115,6 @@ Available in Claude Code and OpenCode as `/dj-<command>`:
 - HTMX + Alpine.js + Tailwind CSS (no JS build step)
 - `uv` for dependency management, `just` for task running
 - `django-tasks-db` for background tasks
-- `django-allauth` for authentication
 
 See `docs/` for detailed documentation on each part of the stack.
 

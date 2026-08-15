@@ -2,14 +2,11 @@
 
 Provides anonymise_user() to fulfil Article 17 deletion requests.
 Any project-specific models that store PII linked to a user (e.g.
-profiles, orders, comments) must also be anonymised or deleted here —
-add those calls below the allauth cleanup block.
+profiles, orders, comments) must also be anonymised or deleted here.
 """
 
 from typing import TYPE_CHECKING
 
-from allauth.account.models import EmailAddress
-from allauth.socialaccount.models import SocialAccount
 from django.db import transaction
 
 if TYPE_CHECKING:
@@ -21,9 +18,9 @@ def anonymise_user(user: User) -> None:
     """Irreversibly anonymise a user record.
 
     Replaces all PII fields with anonymous placeholders, marks the
-    account inactive, and removes allauth authentication records.
+    account inactive.
 
-    Add project-specific PII cleanup below the allauth block.
+    Add project-specific PII cleanup below.
     """
     anon_id = f"deleted-{user.pk}"
 
@@ -43,6 +40,3 @@ def anonymise_user(user: User) -> None:
             "password",
         ]
     )
-
-    EmailAddress.objects.filter(user=user).delete()
-    SocialAccount.objects.filter(user=user).delete()

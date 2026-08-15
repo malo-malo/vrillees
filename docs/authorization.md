@@ -112,7 +112,6 @@ For `has_perm` and the `{% has_perm %}` template tag to work, `rules.permissions
 AUTHENTICATION_BACKENDS = [
     "rules.permissions.ObjectPermissionBackend",
     "django.contrib.auth.backends.ModelBackend",
-    "allauth.account.auth_backends.AuthenticationBackend",
 ]
 ```
 

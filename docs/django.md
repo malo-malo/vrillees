@@ -138,9 +138,6 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "django.forms",
     # Third-party
-    "allauth",
-    "allauth.account",
-    "allauth.socialaccount",
     "django_htmx",
     "django_http_compression",
     "django_linear_migrations",
@@ -170,7 +167,6 @@ MIDDLEWARE = [
     "django_http_compression.middleware.HttpCompressionMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "django.middleware.csp.ContentSecurityPolicyMiddleware",
-    "allauth.account.middleware.AccountMiddleware",
     "django_htmx.middleware.HtmxMiddleware",
 ]
 ```

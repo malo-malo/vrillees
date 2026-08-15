@@ -15,7 +15,6 @@ urlpatterns = [
     path("accept-cookies/", views.accept_cookies, name="accept_cookies"),
     path("i18n/", include("django.conf.urls.i18n")),
     path("", include("vrillees_website.users.urls")),
-    path("account/", include("allauth.urls")),
     path(
         "ht/live/",
         HealthCheckView.as_view(checks=["health_check.Database"]),

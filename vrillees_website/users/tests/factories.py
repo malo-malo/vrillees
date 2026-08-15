@@ -1,6 +1,5 @@
-from allauth.account.models import EmailAddress
 from factory import django
-from factory.declarations import LazyAttribute, Sequence, SubFactory
+from factory.declarations import Sequence
 
 from vrillees_website.users.models import User
 
@@ -12,12 +11,3 @@ class UserFactory(django.DjangoModelFactory):
 
     class Meta:
         model = User
-
-
-class EmailAddressFactory(django.DjangoModelFactory):
-    user = SubFactory(UserFactory)
-    email = LazyAttribute(lambda a: a.user.email)
-    verified = True
-
-    class Meta:
-        model = EmailAddress

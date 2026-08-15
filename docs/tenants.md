@@ -126,7 +126,6 @@ from django.contrib import admin
 urlpatterns = [
     path(settings.ADMIN_URL, admin.site.urls),
     path("robots.txt", views.robots, name="robots"),
-    path("account/", include("allauth.urls")),
     # health checks, debug toolbar, browser reload ...
 ]
 

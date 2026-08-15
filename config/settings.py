@@ -46,11 +46,6 @@ INSTALLED_APPS: list[str] = [
     "django.contrib.sites",
     "django.contrib.staticfiles",
     "django.forms",
-    "allauth",
-    "allauth.account",
-    "allauth.socialaccount",
-    "allauth.socialaccount.providers.github",
-    "allauth.socialaccount.providers.google",
     "django_htmx",
     "django_http_compression",
     "django_linear_migrations",
@@ -78,7 +73,6 @@ MIDDLEWARE: list[str] = [
     "django_http_compression.middleware.HttpCompressionMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "django.middleware.csp.ContentSecurityPolicyMiddleware",
-    "allauth.account.middleware.AccountMiddleware",
     "django_htmx.middleware.HtmxMiddleware",
     "vrillees_website.middleware.HtmxCacheMiddleware",
     "vrillees_website.middleware.HtmxMessagesMiddleware",
@@ -233,7 +227,6 @@ AUTH_USER_MODEL = "users.User"
 
 AUTHENTICATION_BACKENDS = [
     "django.contrib.auth.backends.ModelBackend",
-    "allauth.account.auth_backends.AuthenticationBackend",
 ]
 
 AUTH_PASSWORD_VALIDATORS: list[dict[str, str]] = [
@@ -246,38 +239,6 @@ AUTH_PASSWORD_VALIDATORS: list[dict[str, str]] = [
 ]
 
 LOGIN_REDIRECT_URL = reverse_lazy("index")
-LOGIN_URL = reverse_lazy("account_login")
-
-# https://django-allauth.readthedocs.io/en/latest/configuration.html
-
-ACCOUNT_SIGNUP_FIELDS = [
-    "email*",
-    "username*",
-    "password1*",
-    "password2*",
-]
-
-ACCOUNT_EMAIL_VERIFICATION = "mandatory"
-ACCOUNT_EMAIL_VERIFICATION_BY_CODE_ENABLED = True
-ACCOUNT_EMAIL_VERIFICATION_SUPPORTS_RESEND = True
-ACCOUNT_LOGIN_METHODS = {"email"}
-ACCOUNT_LOGIN_ON_PASSWORD_RESET = True
-ACCOUNT_PASSWORD_RESET_BY_CODE_ENABLED = True
-ACCOUNT_SIGNUP_FORM_HONEYPOT_FIELD = "phone_number"
-ACCOUNT_PREVENT_ENUMERATION = True
-ACCOUNT_UNIQUE_EMAIL = True
-
-SOCIALACCOUNT_PROVIDERS = {
-    "google": {
-        "SCOPE": [
-            "profile",
-            "email",
-        ],
-        "AUTH_PARAMS": {
-            "access_type": "online",
-        },
-    },
-}
 
 # admin settings
 

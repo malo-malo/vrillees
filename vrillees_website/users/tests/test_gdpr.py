@@ -1,8 +1,6 @@
 """Tests for GDPR right-to-erasure functionality."""
 
 import pytest
-from allauth.account.models import EmailAddress
-from allauth.socialaccount.models import SocialAccount
 from django.urls import reverse
 
 from vrillees_website.users.gdpr import anonymise_user
@@ -30,18 +28,6 @@ class TestAnonymiseUser:
         user.refresh_from_db()
         assert not user.is_active
         assert not user.has_usable_password()
-
-    def test_email_addresses_deleted(self):
-        user = UserFactory()
-        EmailAddress.objects.create(user=user, email=user.email, verified=True)
-        anonymise_user(user)
-        assert not EmailAddress.objects.filter(user=user).exists()
-
-    def test_social_accounts_deleted(self):
-        user = UserFactory()
-        SocialAccount.objects.create(user=user, provider="google", uid="123")
-        anonymise_user(user)
-        assert not SocialAccount.objects.filter(user=user).exists()
 
 
 @pytest.mark.django_db
