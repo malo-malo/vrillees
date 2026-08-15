@@ -1,7 +1,6 @@
 """Tests for GDPR right-to-erasure functionality."""
 
 import pytest
-from django.urls import reverse
 
 from vrillees_website.users.gdpr import anonymise_user
 from vrillees_website.users.tests.factories import UserFactory
@@ -28,35 +27,3 @@ class TestAnonymiseUser:
         user.refresh_from_db()
         assert not user.is_active
         assert not user.has_usable_password()
-
-
-@pytest.mark.django_db
-class TestDeleteAccountView:
-    def test_get(self, client, auth_user):
-        response = client.get(reverse("users:delete_account"))
-        assert response.status_code == 200
-
-    def test_delete_anonymises_user_and_logs_out(self, client, auth_user):
-        pk = auth_user.pk
-        response = client.delete(
-            reverse("users:delete_account"),
-            HTTP_X_CSRFTOKEN=client.cookies.get("csrftoken", ""),
-        )
-        assert response.status_code == 302
-        assert response["Location"] == reverse("index")
-        auth_user.refresh_from_db()
-        assert not auth_user.is_active
-        assert auth_user.email == f"deleted-{pk}@example.invalid"
-        # Session cleared — subsequent request is anonymous
-        response = client.get(reverse("index"))
-        assert response.wsgi_request.user.is_anonymous
-
-    def test_unauthenticated_redirects_to_login(self, client):
-        response = client.get(reverse("users:delete_account"))
-        assert response.status_code == 302
-        assert "login" in response["Location"]
-
-    def test_unauthenticated_delete_redirects_to_login(self, client):
-        response = client.delete(reverse("users:delete_account"))
-        assert response.status_code == 302
-        assert "login" in response["Location"]

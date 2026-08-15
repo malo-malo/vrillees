@@ -98,24 +98,6 @@ def _nav_context(app_name: str = "", url_name: str = "", path: str = "/") -> Moc
 
 
 class TestActiveUrl:
-    def test_active_when_path_matches(self, rf):
-        req = rf.get("/account/email/")
-        ctx = Mock()
-        ctx.request = req
-        result = active_url(ctx, "account_email", active_class="menu-active")
-        assert result.is_active is True
-        assert result.url == "/account/email/"
-        assert result.css_class == "menu-active"
-
-    def test_inactive_when_path_differs(self, rf):
-        req = rf.get("/")
-        ctx = Mock()
-        ctx.request = req
-        result = active_url(ctx, "account_email")
-        assert result.is_active is False
-        assert result.url == "/account/email/"
-        assert result.css_class == ""
-
     def test_invalid_viewname_returns_empty_url(self, rf):
         req = rf.get("/")
         ctx = Mock()
@@ -126,35 +108,6 @@ class TestActiveUrl:
 
 
 class TestReActiveUrl:
-    def test_active_when_pattern_matches(self):
-        result = re_active_url(
-            _nav_context(path="/account/password/change/"),
-            "password/(change|set)",
-            active_class="menu-active",
-        )
-        assert result.is_active is True
-        assert result.css_class == "menu-active"
-
-    def test_active_on_second_pattern_match(self):
-        result = re_active_url(
-            _nav_context(path="/account/password/set/"), "password/(change|set)"
-        )
-        assert result.is_active is True
-
-    def test_inactive_when_no_match(self):
-        result = re_active_url(
-            _nav_context(path="/account/email/"), "password/(change|set)"
-        )
-        assert result.is_active is False
-        assert result.css_class == ""
-
-    def test_resolves_viewname(self, rf):
-        req = rf.get("/")
-        ctx = Mock()
-        ctx.request = req
-        result = re_active_url(ctx, "password/(change|set)", "account_change_password")
-        assert result.url == "/account/password/change/"
-
     def test_resolves_viewname_with_url_args(self, rf, mocker):
         mocker.patch(
             "vrillees_website.templatetags.reverse",

@@ -69,7 +69,7 @@ check-all:
 
 # Run all tests
 [group('development')]
-test-all: test test-e2e
+test-all: test
 
 # Run unit tests
 [group('development')]

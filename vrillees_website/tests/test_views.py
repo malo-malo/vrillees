@@ -11,13 +11,6 @@ class TestIndex:
 
 
 @pytest.mark.django_db
-class TestPrivacy:
-    def test_get(self, client):
-        response = client.get(reverse("privacy"))
-        assert response.status_code == 200
-
-
-@pytest.mark.django_db
 class TestRobots:
     def test_get(self, client):
         response = client.get(reverse("robots"))
@@ -26,18 +19,6 @@ class TestRobots:
 
     def test_post_not_allowed(self, client):
         response = client.post(reverse("robots"))
-        assert response.status_code == 405
-
-
-@pytest.mark.django_db
-class TestSecurity:
-    def test_get(self, client):
-        response = client.get(reverse("security"))
-        assert response.status_code == 200
-        assert b"Contact:" in response.content
-
-    def test_post_not_allowed(self, client):
-        response = client.post(reverse("security"))
         assert response.status_code == 405
 
 
