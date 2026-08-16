@@ -270,6 +270,7 @@ resource "hcloud_volume_attachment" "postgres_attachment" {
 
 # Job runner node (for cron jobs and background workers)
 resource "hcloud_server" "jobrunner" {
+  count        = var.create_jobrunner ? 1 : 0
   name         = "${var.cluster_name}-jobrunner"
   server_type  = var.agent_server_type
   image        = var.server_image

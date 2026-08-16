@@ -19,13 +19,13 @@ output "database_private_ip" {
 }
 
 output "jobrunner_public_ip" {
-  description = "Public IPv4 address of the jobrunner node"
-  value       = hcloud_server.jobrunner.ipv4_address
+  description = "Public IPv4 address of the jobrunner node (null if not provisioned)"
+  value       = var.create_jobrunner ? hcloud_server.jobrunner[0].ipv4_address : null
 }
 
 output "jobrunner_private_ip" {
-  description = "Private IP address of the jobrunner node"
-  value       = local.jobrunner_private_ip
+  description = "Private IP address of the jobrunner node (null if not provisioned)"
+  value       = var.create_jobrunner ? local.jobrunner_private_ip : null
 }
 
 output "webapp_public_ips" {

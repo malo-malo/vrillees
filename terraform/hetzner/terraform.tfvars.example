@@ -24,6 +24,8 @@ webapp_count = 2
 # PostgreSQL volume size in GB
 postgres_volume_size = 50
 
+create_jobrunner = true
+
 # Provision a monitor node for the observability stack (Grafana + Prometheus + Loki)
 # Set to false to skip now; run /dj-launch-observability later to provision it.
 create_monitor = true
