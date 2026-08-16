@@ -1,10 +1,12 @@
 from django.db import models
 
+from vrillees_website.company.utils import upload_handler
+
 
 class Artist(models.Model):
     first_name = models.CharField(max_length=100)
     last_name = models.CharField(max_length=100)
-    picture = models.ImageField(upload_to="artists/")
+    picture = models.ImageField(upload_to=upload_handler)
 
     class Meta:
         verbose_name = "Artiste"
