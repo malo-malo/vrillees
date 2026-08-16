@@ -39,34 +39,19 @@ COPY . .
 RUN --mount=type=cache,target=/root/.cache/uv \
   uv run python manage.py tailwind build && \
   uv run python manage.py tailwind remove_cli && \
-  uv run python manage.py collectstatic --no-input
+  uv run python manage.py collectstatic --no-inputterraform.tfvars
 
 # Final production image
 FROM python:${PYTHON_IMAGE} AS webapp
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
-# Must match postgres.image major version in helm/site/values.yaml
-ARG POSTGRES_MAJOR=18
 # Install Python dependencies
 ENV LC_CTYPE=C.utf8 \
   PYTHONUNBUFFERED=1 \
   PYTHONHASHSEED=random \
   PYTHONDONTWRITEBYTECODE=1 \
   PATH="/app/.venv/bin:$PATH"
-
-# Install postgresql-client (version-matched to production DB) for manage.py dbshell
-# hadolint ignore=DL3008
-RUN apt-get update \
-  && apt-get install -y --no-install-recommends curl ca-certificates gnupg \
-  && curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc \
-  | gpg --dearmor -o /usr/share/keyrings/postgresql.gpg \
-  && echo "deb [signed-by=/usr/share/keyrings/postgresql.gpg] https://apt.postgresql.org/pub/repos/apt bookworm-pgdg main" \
-  > /etc/apt/sources.list.d/pgdg.list \
-  && apt-get update \
-  && apt-get install -y --no-install-recommends postgresql-client-${POSTGRES_MAJOR} \
-  && apt-get purge -y --auto-remove curl gnupg \
-  && rm -rf /var/lib/apt/lists/*
 
 # Create non-root user FIRST, before any file copies
 RUN useradd -m -u 1000 django

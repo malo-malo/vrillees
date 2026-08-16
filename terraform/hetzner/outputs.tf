@@ -8,16 +8,6 @@ output "server_private_ip" {
   value       = local.server_private_ip
 }
 
-output "database_public_ip" {
-  description = "Public IPv4 address of the database node"
-  value       = hcloud_server.database.ipv4_address
-}
-
-output "database_private_ip" {
-  description = "Private IP address of the database node"
-  value       = local.database_private_ip
-}
-
 output "jobrunner_public_ip" {
   description = "Public IPv4 address of the jobrunner node (null if not provisioned)"
   value       = var.create_jobrunner ? hcloud_server.jobrunner[0].ipv4_address : null
@@ -46,21 +36,6 @@ output "monitor_public_ip" {
 output "monitor_private_ip" {
   description = "Private IP address of the monitor node (null if not provisioned)"
   value       = var.create_monitor ? local.monitor_private_ip : null
-}
-
-output "postgres_volume_id" {
-  description = "ID of the PostgreSQL volume"
-  value       = hcloud_volume.postgres.id
-}
-
-output "postgres_volume_linux_device" {
-  description = "Linux device path for PostgreSQL volume"
-  value       = hcloud_volume.postgres.linux_device
-}
-
-output "postgres_volume_mount_path" {
-  description = "Automount path for PostgreSQL volume - use as postgres.volumePath in helm values"
-  value       = "/mnt/HC_Volume_${hcloud_volume.postgres.id}"
 }
 
 output "network_id" {

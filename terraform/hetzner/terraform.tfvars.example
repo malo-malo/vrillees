@@ -15,14 +15,10 @@ location = "nbg1"
 
 # Server types (cx11-cpx51, ccx13-ccx63, cax11-cax41)
 server_type          = "cx23"  # k3s control plane + Traefik
-database_server_type = "cx23"  # PostgreSQL + Redis
 agent_server_type    = "cx23"  # Jobrunner + Webapps
 
 # Number of webapp instances
 webapp_count = 2
-
-# PostgreSQL volume size in GB
-postgres_volume_size = 50
 
 create_jobrunner = true
 

@@ -179,5 +179,4 @@ just pyinstall
 
 - **App**: http://localhost:8000
 - **Mailpit**: http://localhost:8025 (catches emails sent in dev)
-- **PostgreSQL**: localhost:5432
 - **Redis**: localhost:6379

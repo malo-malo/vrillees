@@ -4,30 +4,6 @@ image: ghcr.io/CHANGE_ME/vrillees_website:main
 # Number of webapp replicas - override in values.secret.yaml
 replicas: 2
 
-# PostgreSQL configuration
-postgres:
-  image: postgres:18.1-bookworm
-  storage: 30Gi
-  # Volume mount path - set in values.secret.yaml from:
-  # terraform -chdir=terraform/hetzner output -raw postgres_volume_mount_path
-  volumePath: ""
-  args:
-    - postgres
-    - -c
-    - lock_timeout=5s
-    - -c
-    - log_destination=stderr
-    - -c
-    - log_statement=all
-    - -c
-    - max_connections=200
-    - -c
-    - max_wal_size=4GB
-    - -c
-    - statement_timeout=30s
-    - -c
-    - wal_buffers=32MB
-
 # Redis configuration
 redis:
   image: redis:8.2.2-bookworm
@@ -56,13 +32,6 @@ resources:
     limits:
       memory: 1024Mi
       cpu: 800m
-  postgres:
-    requests:
-      memory: 1024Mi
-      cpu: 400m
-    limits:
-      memory: 2816Mi
-      cpu: 1600m
   redis:
     requests:
       memory: 64Mi
@@ -73,10 +42,6 @@ resources:
 
 # Application domain - set in values.secret.yaml
 domain: ""
-
-# Multi-tenancy (django-tenants) - set to true to route all subdomains to Django
-tenants:
-  enabled: false
 
 # Django application settings
 app:
@@ -108,24 +73,9 @@ cronjobs:
     schedule: "25 9 * * *"
     command: "./manage.sh prune_db_task_results --min-age-days=1"
 
-# Database backups - disabled by default, see docs/database-backups.md to enable
-backup:
-  enabled: false
-  schedule: "0 3 * * *"
-  retention: 7
-  awsCliImage: "amazon/aws-cli:2.34.11"
-
-# PostgreSQL major-version upgrade (disabled by default)
-pgUpgrade:
-  enabled: false
-  newImage: ""
-  newVolumePath: ""
-  storage: 30Gi
-
 # Secrets - never commit values.secret.yaml
 # Copy values.secret.yaml.example to values.secret.yaml and fill in values.
 secrets:
-  postgresPassword: ""
   djangoSecretKey: ""
   djangoSecretKeyFallbacks: ""
   mailgunApiKey: ""
@@ -140,12 +90,6 @@ secrets:
   hetznerStorageBucket: ""
   hetznerStorageEndpoint: ""
   hetznerStorageRegion: "fsn1"
-  # Database backups (backup.enabled: true) - see docs/database-backups.md
-  backupAccessKey: ""
-  backupSecretKey: ""
-  backupBucket: ""
-  backupEndpoint: ""
-  backupRegion: "fsn1"
   cloudflare:
     cert: ""
     key: ""

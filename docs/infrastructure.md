@@ -72,7 +72,6 @@ Full Kubernetes (kubeadm, EKS, GKE) is operationally heavy for a single develope
 ### Hetzner Cloud
 
 - **Servers**: K3s cluster nodes
-- **Volumes**: PostgreSQL data volume
 - **Firewall**: Security rules
 - **Network**: Private network for cluster
 
@@ -103,13 +102,6 @@ Traefik handles routing:
 - HTTP/HTTPS termination
 - Path-based routing
 - Let's Encrypt certificates
-
-### PostgreSQL
-
-Managed via K3s with:
-
-- Persistent volume
-- Automated backups (optional)
 
 ### Redis
 
@@ -366,16 +358,6 @@ OTEL_EXPORTER_OTLP_ENDPOINT = "http://otel-collector:4317"
 1. Edit `terraform/hetzner/terraform.tfvars` (e.g. increase `webapp_count`)
 2. Run `terraform apply` - new nodes join the cluster automatically via cloud-init
 3. Run `just helm site` to apply the updated replica count
-
-## Backup
-
-Automated daily backups are optional and set up separately after initial deployment.
-See `docs/database-backups.md` for the full setup and restore guide, or run `/dj-enable-db-backups`
-to be guided through the process interactively.
-
-In brief: a Kubernetes CronJob runs `pg_dump` nightly and uploads compressed dumps to a
-private Hetzner Object Storage bucket (`<project>-db-backups`). Backup credentials are
-stored in a dedicated `backup-secret` and are never exposed to the app pods.
 
 ## Cost
 

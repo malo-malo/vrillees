@@ -16,7 +16,6 @@ provider "hcloud" {
 locals {
   # Fixed private IPs - deterministic, referenced in cloud-init templates
   server_private_ip    = cidrhost(var.subnet_ip_range, 2) # 10.0.0.2
-  database_private_ip  = cidrhost(var.subnet_ip_range, 3) # 10.0.0.3
   jobrunner_private_ip = cidrhost(var.subnet_ip_range, 4) # 10.0.0.4
   webapp_private_ips   = [for i in range(var.webapp_count) : cidrhost(var.subnet_ip_range, 5 + i)]
   monitor_private_ip   = cidrhost(var.subnet_ip_range, 10) # 10.0.0.10
@@ -174,18 +173,6 @@ resource "hcloud_firewall" "agents" {
   }
 }
 
-# Volume for PostgreSQL data (pre-formatted ext4)
-resource "hcloud_volume" "postgres" {
-  name     = "${var.cluster_name}-postgres-volume"
-  size     = var.postgres_volume_size
-  location = var.location
-  format   = "ext4"
-
-  lifecycle {
-    prevent_destroy = true
-  }
-}
-
 # Server node (k3s control plane + Traefik load balancer)
 resource "hcloud_server" "server" {
   name         = "${var.cluster_name}-server"
@@ -222,50 +209,6 @@ resource "hcloud_server" "server" {
   lifecycle {
     ignore_changes = [user_data, ssh_keys]
   }
-}
-
-# Database node (PostgreSQL + Redis)
-resource "hcloud_server" "database" {
-  name         = "${var.cluster_name}-database"
-  server_type  = var.database_server_type
-  image        = var.server_image
-  location     = var.location
-  ssh_keys     = [hcloud_ssh_key.default.id]
-  firewall_ids = [hcloud_firewall.agents.id]
-
-  user_data = templatefile("${path.module}/templates/cloud_init_database.tftpl", {
-    hostname          = "${var.cluster_name}-database"
-    server_private_ip = local.server_private_ip
-    k3s_token         = var.k3s_token
-    ssh_public_key    = var.ssh_public_key
-  })
-
-  labels = {
-    cluster = var.cluster_name
-    role    = "database"
-  }
-
-  public_net {
-    ipv4_enabled = true
-    ipv6_enabled = true
-  }
-
-  network {
-    network_id = hcloud_network.private_network.id
-    ip         = local.database_private_ip
-  }
-
-  depends_on = [hcloud_network_subnet.private_subnet]
-
-  lifecycle {
-    ignore_changes = [user_data, ssh_keys]
-  }
-}
-
-resource "hcloud_volume_attachment" "postgres_attachment" {
-  volume_id = hcloud_volume.postgres.id
-  server_id = hcloud_server.database.id
-  automount = true
 }
 
 # Job runner node (for cron jobs and background workers)

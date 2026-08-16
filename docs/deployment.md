@@ -14,9 +14,9 @@ This project uses Terraform for infrastructure provisioning and Helm for Kuberne
 
 | Layer | Tool | What it does |
 |-------|------|--------------|
-| Infrastructure | Terraform (hetzner) | Servers, network, firewall, Postgres volume; K3s via cloud-init |
+| Infrastructure | Terraform (hetzner) | Servers, network, firewall; K3s via cloud-init |
 | DNS / CDN / SSL | Terraform (cloudflare) | DNS A record, CDN caching, TLS settings |
-| Kubernetes objects | Helm (`helm/site/`) | App, workers, cron jobs, Postgres, Redis, ingress |
+| Kubernetes objects | Helm (`helm/site/`) | App, workers, cron jobs, Redis, ingress |
 | Observability | Helm (`helm/observability/`) | Prometheus, Grafana, Loki, Tempo, OTel |
 
 ## Terraform
@@ -54,7 +54,6 @@ The `storage/` and `backups/` modules are independent of the other two — each 
 applied at any time after the bucket credentials are created.
 
 - See `docs/file-storage.md` for the media storage workflow.
-- See `docs/database-backups.md` for the database backup workflow, or run `/dj-enable-db-backups`.
 
 ### Commands
 
@@ -101,10 +100,6 @@ helm/
 │       ├── django-worker-deployment.yaml
 │       ├── django-service.yaml
 │       ├── ingress-route.yaml
-│       ├── postgres-statefulset.yaml
-│       ├── postgres-pv.yaml
-│       ├── postgres-pvc.yaml
-│       ├── postgres-service.yaml
 │       ├── redis-deployment.yaml
 │       ├── redis-service.yaml
 │       └── cronjobs.yaml
@@ -135,14 +130,6 @@ cp helm/site/values.secret.yaml.example helm/site/values.secret.yaml
 ```
 
 `values.secret.yaml` is gitignored — never commit it.
-
-The `postgres.volumePath` value must match the Hetzner volume mount path provisioned by
-Terraform:
-
-```bash
-terraform -chdir=terraform/hetzner output -raw postgres_volume_mount_path
-# e.g. /mnt/HC_Volume_12345678
-```
 
 Both charts ship resource defaults tuned for the Terraform default server type (`cx23`:
 2 vCPU, 4 GB RAM). If you change `server_type` in `terraform.tfvars`, override the
@@ -269,15 +256,4 @@ just rkube logs -f deployment/django-app
 
 # Fetch kubeconfig
 just get-kubeconfig
-```
-
-### Upgrade PostgreSQL major version
-
-Set the upgrade flags in `helm/site/values.secret.yaml` before running `just helm site`:
-
-```yaml
-pgUpgrade:
-  enabled: true
-  newImage: postgres:17
-  newVolumePath: /mnt/HC_Volume_<new-volume-id>
 ```

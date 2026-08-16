@@ -37,7 +37,6 @@ State your findings explicitly when suggesting a package — don't just name it.
 | Need                                                      | Package(s)            | Install                   |
 | --------------------------------------------------------- | --------------------- | ------------------------- |
 | Image thumbnails                                          | [`sorl-thumbnail`](https://sorl-thumbnail.readthedocs.io/) | `uv add sorl-thumbnail`   |
-| Multi-tenancy                                             | [`django-tenants`](https://django-tenants.readthedocs.io/) | `uv add django-tenants`   |
 | HTTP API client                                           | [`aiohttp`](https://docs.aiohttp.org/) | `uv add aiohttp`          |
 | WebSockets / real-time (bidirectional)                    | [`channels`](https://channels.readthedocs.io/) + [`channels-redis`](https://pypi.org/project/channels-redis/) | `uv add channels channels-redis` |
 | Querystring filtering                                     | [`django-filter`](https://django-filter.readthedocs.io/) | `uv add django-filter`    |
@@ -100,9 +99,6 @@ State your findings explicitly when suggesting a package — don't just name it.
   Integrates with Django's standard `has_perm`/`has_object_perm` via a custom
   backend. No DB overhead. Best fit when authorization logic is expressed in
   code (ownership checks, role membership, state-based rules).
-- **geopy**: use the `Nominatim` geocoder (no API key required). Run geocoding in
-  a background task — never in a request handler. See `docs/maps.md` for the full
-  pattern including the django-tasks integration and OSM embed.
 - **django-modeltranslation**: adds language-specific columns for selected model
   fields using a `translation.py` registration file — no schema changes to
   existing fields. Add `"modeltranslation"` to `INSTALLED_APPS` **before**

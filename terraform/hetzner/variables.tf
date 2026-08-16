@@ -51,12 +51,6 @@ variable "server_type" {
   default     = "cx23" # 2 vCPU, 4 GB RAM
 }
 
-variable "database_server_type" {
-  description = "Server type for database node"
-  type        = string
-  default     = "cx23" # 2 vCPU, 4 GB RAM
-}
-
 variable "agent_server_type" {
   description = "Server type for agent nodes (jobrunner, webapps)"
   type        = string
@@ -67,12 +61,6 @@ variable "webapp_count" {
   description = "Number of webapp instances to create"
   type        = number
   default     = 2
-}
-
-variable "postgres_volume_size" {
-  description = "Size of PostgreSQL volume in GB"
-  type        = number
-  default     = 50
 }
 
 variable "k3s_token" {

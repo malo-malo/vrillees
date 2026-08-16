@@ -125,7 +125,7 @@ nodeSelector:
   role: jobrunner
 ```
 
-This is already set in all chart templates (`cronjobs.yaml`, `postgres-backup-cronjob.yaml`,
+This is already set in all chart templates (`cronjobs.yaml`,
 `release-job.yaml`) and in the `db-restore` pod created by the restore script. When adding
 any new one-off job or CronJob, always include this selector.
 

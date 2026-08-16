@@ -47,10 +47,6 @@ COPY --from=ghcr.io/astral-sh/uv:0.9.8 /uv /usr/local/bin/uv
 
 All dep installs use `--mount=type=cache,target=/root/.cache/uv` for layer caching.
 
-### PostgreSQL Client
-
-The `webapp` stage installs `postgresql-client-${POSTGRES_MAJOR}` from the official PGDG apt repo, version-matched to the production database (default: 18). This enables `manage.py dbshell` inside the container.
-
 ### Security
 
 - Non-root user (`django`, uid 1000) created before any file copies
