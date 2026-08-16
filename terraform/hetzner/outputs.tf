@@ -70,5 +70,5 @@ output "network_id" {
 
 output "get_kubeconfig_cmd" {
   description = "Command to fetch kubeconfig from the server"
-  value       = "ssh ubuntu@${hcloud_server.server.ipv4_address} 'cat /home/ubuntu/.kube/config' | sed 's/127.0.0.1/${hcloud_server.server.ipv4_address}/g' > ~/.kube/vrillees_website.yaml"
+  value       = "ssh ubuntu@${hcloud_server.server.ipv4_address} 'cat /home/ubuntu/.kube/config' | sed 's/127.0.0.1/${hcloud_server.server.ipv4_address}/g' > ~/.kube/vrillees.yaml"
 }

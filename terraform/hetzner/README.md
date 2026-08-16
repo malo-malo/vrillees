@@ -49,7 +49,7 @@ terraform apply
 | `hcloud_token` | yes | - | Hetzner Cloud API token (Read & Write) |
 | `ssh_public_key` | yes | - | SSH public key for server access |
 | `k3s_token` | yes | - | Pre-shared token for K3s cluster (`openssl rand -hex 32`) |
-| `cluster_name` | no | `vrillees_website` | Name prefix for all resources |
+| `cluster_name` | no | `vrillees` | Name prefix for all resources |
 | `location` | no | `nbg1` | Hetzner datacenter |
 | `network_zone` | no | `eu-central` | Must match `location` |
 | `server_type` | no | `cx23` | Server node type |

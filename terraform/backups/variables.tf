@@ -13,7 +13,7 @@ variable "secret_key" {
 variable "bucket_name" {
   description = "Backup bucket name (must be globally unique in the region)"
   type        = string
-  default     = "vrillees_website-db-backups"
+  default     = "vrillees-db-backups"
 }
 
 variable "location" {

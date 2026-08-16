@@ -8,7 +8,7 @@ ssh_public_key = ""
 k3s_token = "CHANGE_ME"
 
 # Name prefix for all resources
-cluster_name = "vrillees_website"
+cluster_name = "vrillees"
 
 # Hetzner datacenter location (nbg1, fsn1, hel1, ash, hil)
 location = "nbg1"

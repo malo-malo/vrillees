@@ -5,7 +5,7 @@ access_key = ""
 secret_key = ""
 
 # Object storage bucket name (must be globally unique within the region)
-bucket_name = "vrillees_website-media"
+bucket_name = "vrillees-media"
 
 # Hetzner datacenter location - must match where your cluster is deployed
 # Options: fsn1 (Falkenstein), nbg1 (Nuremberg), hel1 (Helsinki), ash (Ashburn), hil (Hillsboro)
