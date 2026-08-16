@@ -40,7 +40,6 @@ INSTALLED_APPS: list[str] = [
     "django.contrib.contenttypes",
     "django.contrib.humanize",
     "django.contrib.messages",
-    "django.contrib.postgres",
     "django.contrib.sessions",
     "django.contrib.sitemaps",
     "django.contrib.sites",
@@ -85,30 +84,22 @@ MIDDLEWARE: list[str] = [
 #
 
 DATABASES = {
-    "default": env.dj_db_url(
-        "DATABASE_URL",
-        default="postgresql://postgres:password@127.0.0.1:5432/postgres",  # pragma: allowlist secret
-    )
-    | {"ATOMIC_REQUESTS": True}
+    "default": {
+        "ENGINE": "django.db.backends.sqlite3",
+        "NAME": BASE_DIR / "db.sqlite3",
+        "OPTIONS": {
+            "transaction_mode": "IMMEDIATE",
+            "timeout": 20,  # seconds
+            "init_command": """
+                PRAGMA journal_mode=WAL;
+                PRAGMA synchronous=NORMAL;
+                PRAGMA mmap_size=134217728;
+                PRAGMA journal_size_limit=27103364;
+                PRAGMA cache_size=2000;
+            """,
+        },
+    },
 }
-
-if env.bool("USE_CONNECTION_POOL", default=True):
-    # Connection pool settings
-    # https://www.psycopg.org/psycopg3/docs/api/pool.html#psycopg_pool.ConnectionPool
-    DATABASES["default"]["CONN_MAX_AGE"] = 0
-    DATABASES["default"]["OPTIONS"] = {
-        "pool": (
-            {
-                "min_size": env.int("CONN_POOL_MIN_SIZE", 2),
-                "max_size": env.int("CONN_POOL_MAX_SIZE", 10),
-                "max_lifetime": env.int("CONN_POOL_MAX_LIFETIME", 1800),
-                "max_idle": env.int("CONN_POOL_MAX_IDLE", 120),
-                "max_waiting": env.int("CONN_POOL_MAX_WAITING", 200),
-                # assumes 30s statement_timeout in PostgreSQL
-                "timeout": env.int("CONN_POOL_TIMEOUT", default=20),
-            }
-        ),
-    }
 
 # Caches
 

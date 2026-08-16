@@ -308,15 +308,6 @@ bloating the core library. Vendor them like any other frontend dependency.
 
 Do not load extensions globally in `base.html` unless every page needs them.
 
-### Available extensions
-
-| Extension | Package | Use case | Docs |
-| --------- | ------- | -------- | ---- |
-| SSE | `htmx-ext-sse` | Server-Sent Events | `docs/sse.md` |
-| WebSocket | `htmx-ext-ws` | Bidirectional WebSockets | `docs/channels.md` |
-
-See [htmx.org/extensions](https://htmx.org/extensions/) for the full list.
-
 ## Best Practices
 
 1. Always include `hx-headers` with `{{ csrf_header }}` and `{{ csrf_token }}` on POST/PUT/DELETE requests.
