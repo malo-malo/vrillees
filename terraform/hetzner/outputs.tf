@@ -28,16 +28,6 @@ output "webapp_private_ips" {
   value       = local.webapp_private_ips
 }
 
-output "monitor_public_ip" {
-  description = "Public IPv4 address of the monitor node (null if not provisioned)"
-  value       = var.create_monitor ? hcloud_server.monitor[0].ipv4_address : null
-}
-
-output "monitor_private_ip" {
-  description = "Private IP address of the monitor node (null if not provisioned)"
-  value       = var.create_monitor ? local.monitor_private_ip : null
-}
-
 output "network_id" {
   description = "ID of the private network"
   value       = hcloud_network.private_network.id

@@ -75,12 +75,6 @@ variable "admin_ips" {
   default     = ["0.0.0.0/0", "::/0"]
 }
 
-variable "create_monitor" {
-  description = "Whether to provision the monitor node (Grafana + Prometheus + Loki observability stack)"
-  type        = bool
-  default     = true
-}
-
 variable "create_jobrunner" {
   description = "Whether to provision the jobrunner node"
   type        = bool
