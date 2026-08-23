@@ -74,9 +74,3 @@ variable "admin_ips" {
   type        = list(string)
   default     = ["0.0.0.0/0", "::/0"]
 }
-
-variable "create_jobrunner" {
-  description = "Whether to provision the jobrunner node"
-  type        = bool
-  default     = true
-}

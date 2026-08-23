@@ -164,46 +164,6 @@ resource "hcloud_server" "server" {
   }
 }
 
-# Job runner node (for cron jobs and background workers)
-resource "hcloud_server" "jobrunner" {
-  count        = var.create_jobrunner ? 1 : 0
-  name         = "${var.cluster_name}-jobrunner"
-  server_type  = var.agent_server_type
-  image        = var.server_image
-  location     = var.location
-  ssh_keys     = [hcloud_ssh_key.default.id]
-  firewall_ids = [hcloud_firewall.agents.id]
-
-  user_data = templatefile("${path.module}/templates/cloud_init_agent.tftpl", {
-    hostname          = "${var.cluster_name}-jobrunner"
-    server_private_ip = local.server_private_ip
-    k3s_token         = var.k3s_token
-    ssh_public_key    = var.ssh_public_key
-    role              = "jobrunner"
-  })
-
-  labels = {
-    cluster = var.cluster_name
-    role    = "jobrunner"
-  }
-
-  public_net {
-    ipv4_enabled = true
-    ipv6_enabled = true
-  }
-
-  network {
-    network_id = hcloud_network.private_network.id
-    ip         = local.jobrunner_private_ip
-  }
-
-  depends_on = [hcloud_network_subnet.private_subnet]
-
-  lifecycle {
-    ignore_changes = [user_data, ssh_keys]
-  }
-}
-
 # Web application nodes
 resource "hcloud_server" "webapp" {
   count        = var.webapp_count
