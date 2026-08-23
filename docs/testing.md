@@ -221,7 +221,6 @@ details. If you need to control behaviour inside a private method, either:
 | Boundary type          | Tool                           |
 | ---------------------- | ------------------------------ |
 | Async HTTP (`aiohttp`) | `aioresponses`                 |
-| WebSocket consumers    | `channels.testing.WebsocketCommunicator` — see `docs/channels.md` |
 | Any callable/module    | `pytest-mock` (`mocker.patch`) |
 
 ```python

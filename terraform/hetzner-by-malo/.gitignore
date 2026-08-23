@@ -4,6 +4,3 @@
 *.tfstate.*
 *.tfvars
 *.tfvars.json
-
-# Backup
-*.backup

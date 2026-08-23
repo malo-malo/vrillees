@@ -7,7 +7,7 @@ variable "hcloud_token" {
 variable "cluster_name" {
   description = "Name prefix for all resources"
   type        = string
-  default     = "vrillees_website"
+  default     = "vrillees"
 }
 
 variable "location" {
@@ -51,12 +51,6 @@ variable "server_type" {
   default     = "cx23" # 2 vCPU, 4 GB RAM
 }
 
-variable "database_server_type" {
-  description = "Server type for database node"
-  type        = string
-  default     = "cx23" # 2 vCPU, 4 GB RAM
-}
-
 variable "agent_server_type" {
   description = "Server type for agent nodes (jobrunner, webapps)"
   type        = string
@@ -69,12 +63,6 @@ variable "webapp_count" {
   default     = 2
 }
 
-variable "postgres_volume_size" {
-  description = "Size of PostgreSQL volume in GB"
-  type        = number
-  default     = 50
-}
-
 variable "k3s_token" {
   description = "Pre-shared token for K3s cluster (minimum 16 characters)"
   type        = string
@@ -85,10 +73,4 @@ variable "admin_ips" {
   description = "IP ranges allowed to reach SSH (22) and the K3s API (6443). Restrict to your own IP or VPN exit IP for best security. Defaults to open - change before first apply."
   type        = list(string)
   default     = ["0.0.0.0/0", "::/0"]
-}
-
-variable "create_monitor" {
-  description = "Whether to provision the monitor node (Grafana + Prometheus + Loki observability stack)"
-  type        = bool
-  default     = true
 }

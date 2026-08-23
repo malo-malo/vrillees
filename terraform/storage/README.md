@@ -32,7 +32,7 @@ terraform apply
 |----------|----------|---------|-------------|
 | `access_key` | yes | - | S3 access key from Hetzner Console |
 | `secret_key` | yes | - | S3 secret key from Hetzner Console |
-| `bucket_name` | no | `vrillees_website-media` | Bucket name (globally unique per region) |
+| `bucket_name` | no | `vrillees-media` | Bucket name (globally unique per region) |
 | `location` | no | `fsn1` | Datacenter location — must match your cluster |
 
 ## Outputs

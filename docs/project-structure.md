@@ -164,7 +164,6 @@ Command runner with shortcuts for:
 ### docker-compose.yml
 
 Local development services:
-- PostgreSQL
 - Redis
 - Mailpit (email testing)
 

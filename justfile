@@ -122,11 +122,6 @@ start *args:
 stop *args:
    @just dc down {{ args }}
 
-# Run Psql
-[group('development')]
-psql *args:
-   @just dc exec postgres psql -U postgres {{ args }}
-
 # Run pre-commit manually
 [group('development')]
 precommit *args:
@@ -216,12 +211,6 @@ terraform-value dir name:
 [confirm("WARNING!!! Are you sure you want to run this command on production? (y/N)")]
 rdj *args:
     {{ script_dir }}/rmanage.sh {{ args }}
-
-# Open a psql shell on the production database via Django dbshell
-[group('production')]
-[confirm("WARNING!!! Are you sure you want to run this command on production? (y/N)")]
-rpsql:
-    {{ script_dir }}/rmanage.sh dbshell
 
 # Run kubectl commands on the production cluster
 [group('production')]

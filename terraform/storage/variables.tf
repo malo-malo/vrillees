@@ -13,7 +13,7 @@ variable "secret_key" {
 variable "bucket_name" {
   description = "Object storage bucket name (must be globally unique in the region)"
   type        = string
-  default     = "vrillees_website-media"
+  default     = "vrillees-media"
 }
 
 variable "location" {

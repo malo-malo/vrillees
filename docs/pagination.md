@@ -345,68 +345,6 @@ def item_list(request: HttpRequest) -> TemplateResponse:
     )
 ```
 
-### FastCountPaginator — estimated counts for numbered pagination
-
-Reads PostgreSQL's `pg_class.reltuples` statistic — essentially free — for unfiltered
-querysets, falling back to `COUNT(*)` when filters are applied. Use with numbered
-pagination on tables with millions of rows.
-
-```python
-from django.core.paginator import Paginator as DjangoPaginator
-from django.db import connection
-from django.db.models import QuerySet
-from django.utils.functional import cached_property
-
-
-def count_reltuples(table_name: str) -> int:
-    """Return estimated row count from pg_class for the given table."""
-    with connection.cursor() as cursor:
-        cursor.execute(
-            "SELECT reltuples::bigint FROM pg_class WHERE oid = %s::regclass",
-            [table_name],
-        )
-        try:
-            return int(cursor.fetchone()[0])
-        except IndexError, TypeError, ValueError:
-            return 0
-
-
-class FastCountPaginator(DjangoPaginator):
-    """Django paginator with fast unfiltered counts via pg_class.reltuples.
-
-    Falls back to a standard COUNT(*) when the queryset has filters applied.
-    """
-
-    @cached_property
-    def count(self) -> int:
-        """Return estimated count for unfiltered querysets, else exact count."""
-        if (
-            isinstance(self.object_list, QuerySet)
-            and not self.object_list.query.where.children
-        ):
-            result = count_reltuples(self.object_list.model._meta.db_table)
-            if result > 0:
-                return result
-        return super().count
-```
-
-Pass it via `PaginationConfig` the same way as the standard `Paginator`:
-
-```python
-qs = Item.objects.order_by("-created_at")
-return render_paginated_response(
-    request,
-    "my_app/items_list.html",
-    qs,
-    config=PaginationConfig(paginator=FastCountPaginator(qs, 20)),
-)
-```
-
-> `reltuples` is updated by `ANALYZE` (runs automatically via autovacuum). The estimate
-> can be slightly off on very active tables — acceptable for pagination display.
-
----
-
 ## Django Admin: FastCountAdminMixin
 
 Django's admin list view runs `COUNT(*)` on every page load. `FastCountAdminMixin`

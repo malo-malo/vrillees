@@ -6,12 +6,12 @@ Site de la compagnie Vrillé.e.s
 
 ### Development
 
-| Tool                                                    | Purpose                                          | Install                                                     |
-| ------------------------------------------------------- | ------------------------------------------------ | ----------------------------------------------------------- |
-| [uv](https://docs.astral.sh/uv/)                        | Python package manager                           | `curl -LsSf https://astral.sh/uv/install.sh \| sh`          |
-| [just](https://just.systems/)                           | Task runner                                      | `cargo install just` or via your OS package manager         |
-| [Docker](https://docs.docker.com/get-docker/) + Compose | PostgreSQL, Redis, Mailpit                       | See Docker docs                                             |
-| [gh](https://cli.github.com/)                           | GitHub CLI (issues, PRs)                         | See [install docs](https://github.com/cli/cli#installation) |
+| Tool                                                    | Purpose                               | Install                                                     |
+| ------------------------------------------------------- |---------------------------------------| ----------------------------------------------------------- |
+| [uv](https://docs.astral.sh/uv/)                        | Python package manager                | `curl -LsSf https://astral.sh/uv/install.sh \| sh`          |
+| [just](https://just.systems/)                           | Task runner                           | `cargo install just` or via your OS package manager         |
+| [Docker](https://docs.docker.com/get-docker/) + Compose | Redis, Mailpit                        | See Docker docs                                             |
+| [gh](https://cli.github.com/)                           | GitHub CLI (issues, PRs)              | See [install docs](https://github.com/cli/cli#installation) |
 
 Python 3.14 is managed automatically by `uv` - no separate install needed.
 
@@ -31,7 +31,7 @@ See `docs/deployment.md` for full deployment instructions.
 ```bash
 cp .env.example .env        # configure environment variables
 git init                    # initialise Git repository
-just start                  # start Docker services (PostgreSQL, Redis, Mailpit)
+just start                  # start Docker services (Redis, Mailpit)
 just install                # install Python deps + pre-commit hooks
 just dj makemigrations      # generate initial migrations (required on first run)
 just dj migrate             # run database migrations
@@ -103,7 +103,6 @@ Available in Claude Code and OpenCode as `/dj-<command>`:
 | `/dj-launch-observability` | Deploy the observability stack (Grafana + Prometheus + Loki)                   |
 | `/dj-scale [n]`            | View or change the webapp replica count                                        |
 | `/dj-rotate-secrets`       | Rotate auto-generated and third-party Helm secrets and redeploy                |
-| `/dj-enable-db-backups`    | Enable automated daily PostgreSQL backups to a private Object Storage bucket   |
 | `/dj-db-backup`            | Trigger an immediate database backup without waiting for the daily cron        |
 | `/dj-db-restore`           | Guided production database restore from Object Storage backup                  |
 | `/dj-deploy-cron`          | Schedule a management command as a Kubernetes cron job                         |
@@ -111,7 +110,7 @@ Available in Claude Code and OpenCode as `/dj-<command>`:
 
 ## Stack
 
-- Python 3.14, Django 6.0, PostgreSQL 18, Redis 8
+- Python 3.14, Django 6.0, Redis 8
 - HTMX + Alpine.js + Tailwind CSS (no JS build step)
 - `uv` for dependency management, `just` for task running
 - `django-tasks-db` for background tasks
